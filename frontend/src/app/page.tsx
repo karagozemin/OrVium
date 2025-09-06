@@ -144,7 +144,7 @@ export default function Home() {
 
   useEffect(() => {
     if (isConnected && isWalletAuthorized && messages.length === 0) {
-      addMessage('👋 **Hello! Welcome to AI Swap Assistant!**\n\n💱 **Available swaps (ETH → others):**\n• "0.1 ETH to USDT"\n• "0.5 ETH to USDC"\n• "1 ETH to RISE"\n\n💡 **What would you like to do?**', false, 'normal');
+      addMessage('👋 **Hello! Welcome to AI Swap Assistant!**\n\n💱 **Available swaps:**\n\n🟡 **ETH → Others:**\n• "0.1 ETH to USDT"\n• "0.5 ETH to USDC"\n• "1 ETH to RISE"\n\n🔄 **Token ↔ Token:**\n• "10 USDT to USDC"\n• "100 USDT to RISE"\n• "50 USDC to RISE"\n\n💡 **What would you like to do?**', false, 'normal');
     }
   }, [isConnected, isWalletAuthorized, messages.length]);
 
@@ -232,11 +232,18 @@ export default function Home() {
         // Show additional info for successful swaps
         if (data.response.type === 'swap_success' && data.response.route_details) {
           const details = data.response.route_details;
-          const detailsMessage = `📊 **Transaction Details:**
+          let detailsMessage = `📊 **Transaction Details:**
 • **Route:** ${details.pools.join(' → ')}
 • **Estimated Output:** ${details.estimated_output.toFixed(4)}
 • **Gas Cost:** $${details.gas_cost_usd.toFixed(2)}
 • **Price Impact:** ${(details.price_impact * 100).toFixed(2)}%`;
+
+          // Add approval info for two-step swaps
+          if (data.response.approval_tx_hash) {
+            detailsMessage += `\n\n🔐 **Approval Transaction:**
+• **Hash:** \`${data.response.approval_tx_hash}\`
+• **Explorer:** [View Approval](${data.response.approval_explorer_url})`;
+          }
           
           addMessage(detailsMessage, false, 'normal');
         }

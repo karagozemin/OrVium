@@ -343,7 +343,7 @@ class ChatAI:
             return self.error_handler.get_error_response(error_type)
     
     def handle_swap_request(self, swap_request: dict, user_address: str) -> dict:
-        """Handle swap request with comprehensive error handling"""
+        """Handle swap request with comprehensive error handling and approval support"""
         
         from_token = swap_request['from_token']
         to_token = swap_request['to_token']
@@ -367,18 +367,38 @@ class ChatAI:
                     f"❌ **Route Finding Failed**\n\n🔍 **Error:** {route_result.get('error', 'Unknown error')}\n\n💡 **Supported tokens:** ETH, USDC, USDT, RISE\n\n🔄 **Try:** Different token pairs or amounts"
                 )
             
-            # Execute transaction with comprehensive error handling
-            tx_result = self.execute_swap_transaction(from_token, to_token, amount, user_address)
+            # Determine if we need approval (token-to-token swaps)
+            needs_approval = from_token not in ['ETH', 'WETH']
+            
+            if needs_approval:
+                # Execute two-step swap (approval + swap)
+                tx_result = self.execute_two_step_swap_transaction(from_token, to_token, amount, user_address)
+            else:
+                # Execute single-step swap (ETH to token)
+                tx_result = self.execute_swap_transaction(from_token, to_token, amount, user_address)
             
             if tx_result['success']:
+                # Build success message
+                if needs_approval and 'approval_tx_hash' in tx_result:
+                    message = f"✅ **Two-Step Swap Successful!**\n\n💰 **Trade:** {amount} {from_token} → {route_result['route_details']['estimated_output']:.4f} {to_token}\n\n🛣️ **Route:** {' → '.join(route_result['route_details']['pools'])}\n\n🔐 **Step 1 - Approval:** `{tx_result['approval_tx_hash']}`\n🔄 **Step 2 - Swap:** `{tx_result['swap_tx_hash']}`\n\n⛽ **Total Gas Cost:** ${route_result['route_details']['gas_cost_usd']:.2f}"
+                    tx_hash = tx_result['swap_tx_hash']
+                    explorer_url = tx_result.get('explorer_url')
+                else:
+                    message = f"✅ **Swap Successful!**\n\n💰 **Trade:** {amount} {from_token} → {route_result['route_details']['estimated_output']:.4f} {to_token}\n\n🛣️ **Route:** {' → '.join(route_result['route_details']['pools'])}\n\n⛽ **Gas Cost:** ${route_result['route_details']['gas_cost_usd']:.2f}\n\n🔗 **Transaction Hash:** `{tx_result['tx_hash']}`"
+                    tx_hash = tx_result['tx_hash']
+                    explorer_url = tx_result.get('explorer_url')
+                
                 return {
                     'type': 'swap_success',
-                    'message': f"✅ **Swap Successful!**\n\n💰 **Trade:** {amount} {from_token} → {route_result['route_details']['estimated_output']:.4f} {to_token}\n\n🛣️ **Route:** {' → '.join(route_result['route_details']['pools'])}\n\n⛽ **Gas Cost:** ${route_result['route_details']['gas_cost_usd']:.2f}\n\n🔗 **Transaction Hash:** `{tx_result['tx_hash']}`",
-                    'tx_hash': tx_result['tx_hash'],
-                    'explorer_url': tx_result.get('explorer_url'),
+                    'message': message,
+                    'tx_hash': tx_hash,
+                    'explorer_url': explorer_url,
                     'route_details': route_result['route_details'],
                     'show_explorer_link': True,
-                    'can_retry': False
+                    'can_retry': False,
+                    'approval_tx_hash': tx_result.get('approval_tx_hash'),
+                    'approval_explorer_url': tx_result.get('approval_explorer_url'),
+                    'steps': tx_result.get('steps', ['swap'])
                 }
             else:
                 error_type = self.error_handler.classify_error(tx_result.get('error', ''))
@@ -388,6 +408,101 @@ class ChatAI:
                 )
                 
         except Exception as e:
+            # Handle specific RISE→USDT pair not supported error BEFORE generic classification
+            if 'RISE_USDT_PAIR_NOT_SUPPORTED' in str(e):
+                return {
+                    'type': 'error',
+                    'message': f"❌ **RISE → USDT Not Available**\n\n🚫 **Issue:** This trading pair is not supported on the current DEX\n\n💡 **Alternative Routes:**\n• RISE → ETH → USDT (2-step)\n• RISE → USDC → USDT (2-step)\n\n🔄 **Try:** Different token pairs with direct liquidity",
+                    'show_retry': True,
+                    'error_code': 'UNSUPPORTED_PAIR',
+                    'can_retry': True,
+                    'timestamp': datetime.now().isoformat()
+                }
+            
+            # Handle Clober-specific errors with detailed messages
+            elif 'CLOBER_ORDER_NOT_EXISTS' in str(e):
+                return {
+                    'type': 'error',
+                    'message': f"❌ **Order Not Found**\n\n🚫 **Issue:** The order hash is invalid or the order has been filled/cancelled\n\n💡 **Solution:**\n• Refresh the page to get new orders\n• Try a different amount\n• Check if there's sufficient liquidity\n\n🔄 This will auto-retry with fresh order data",
+                    'show_retry': True,
+                    'error_code': 'ORDER_NOT_EXISTS',
+                    'can_retry': True,
+                    'timestamp': datetime.now().isoformat()
+                }
+            elif 'CLOBER_ORDER_FILLED' in str(e):
+                return {
+                    'type': 'error', 
+                    'message': f"❌ **Order Already Filled**\n\n🚫 **Issue:** This order has been completely filled by other traders\n\n💡 **Solution:**\n• Refresh to get new available orders\n• Try smaller amounts\n• Wait for new liquidity\n\n🔄 Auto-generating fresh order hash...",
+                    'show_retry': True,
+                    'error_code': 'ORDER_FILLED',
+                    'can_retry': True,
+                    'timestamp': datetime.now().isoformat()
+                }
+            elif 'CLOBER_SLIPPAGE_EXCEEDED' in str(e):
+                return {
+                    'type': 'error',
+                    'message': f"❌ **Slippage Too High**\n\n🚫 **Issue:** MinAmountOut requirement not met due to price movement\n\n💡 **Solutions:**\n• Increase slippage tolerance\n• Try smaller trade amounts\n• Wait for better market conditions\n• Use limit orders instead\n\n📊 Current slippage protection may be too strict",
+                    'show_retry': True,
+                    'error_code': 'SLIPPAGE_EXCEEDED',
+                    'can_retry': True,
+                    'timestamp': datetime.now().isoformat()
+                }
+            elif 'CLOBER_ORDER_EXPIRED' in str(e):
+                return {
+                    'type': 'error',
+                    'message': f"❌ **Order Expired**\n\n🚫 **Issue:** Order deadline has passed\n\n💡 **Solution:**\n• Refresh to get new orders with fresh deadlines\n• Orders auto-expire for security\n• New order will be generated automatically\n\n⏰ Using extended 2-hour deadlines now",
+                    'show_retry': True,
+                    'error_code': 'ORDER_EXPIRED', 
+                    'can_retry': True,
+                    'timestamp': datetime.now().isoformat()
+                }
+            elif 'CLOBER_NO_LIQUIDITY' in str(e):
+                return {
+                    'type': 'error',
+                    'message': f"❌ **No Matching Orders**\n\n🚫 **Issue:** No available orders match your trade requirements\n\n💡 **Solutions:**\n• Try smaller amounts\n• Check different token pairs\n• Wait for new liquidity providers\n• Consider market orders vs limit orders\n\n📈 Liquidity varies by time and market conditions",
+                    'show_retry': True,
+                    'error_code': 'NO_LIQUIDITY',
+                    'can_retry': True,
+                    'timestamp': datetime.now().isoformat()
+                }
+            elif 'CLOBER_RPC_ERROR' in str(e):
+                return {
+                    'type': 'error',
+                    'message': f"❌ **RPC Node Issue**\n\n🚫 **Issue:** RPC node sync problem during confirmation\n\n💡 **Important:**\n• Your transaction may have actually succeeded\n• Check the blockchain explorer\n• RPC nodes sometimes lag behind\n• This is a confirmation issue, not a swap failure\n\n🔍 **Check Explorer:** Transaction hash may show success",
+                    'show_retry': True,
+                    'error_code': 'RPC_SYNC_ERROR',
+                    'can_retry': True,
+                    'timestamp': datetime.now().isoformat()
+                }
+            elif 'CLOBER_NETWORK_ERROR' in str(e):
+                return {
+                    'type': 'error',
+                    'message': f"❌ **Network Connectivity Issue**\n\n🚫 **Issue:** Network connection problem during confirmation\n\n💡 **Solutions:**\n• Check your internet connection\n• Try again in a few moments\n• Transaction may have succeeded despite error\n• Network congestion can cause delays\n\n🔄 Safe to retry",
+                    'show_retry': True,
+                    'error_code': 'NETWORK_ERROR',
+                    'can_retry': True,
+                    'timestamp': datetime.now().isoformat()
+                }
+            elif 'RISE_USDT_NOT_SUPPORTED' in str(e):
+                return {
+                    'type': 'error',
+                    'message': f"❌ **RISE → USDT Not Available**\n\n🚫 **Issue:** This swap pair is not supported\n\n💡 **Available Swaps:**\n• ETH → USDC/USDT/RISE\n• USDT → USDC\n\n🔄 **Try:** Use ETH to get RISE tokens, or swap USDT to USDC",
+                    'show_retry': False,
+                    'error_code': 'UNSUPPORTED_PAIR',
+                    'can_retry': False,
+                    'timestamp': datetime.now().isoformat()
+                }
+            elif 'CLOBER_SWAP_FAILED' in str(e):
+                return {
+                    'type': 'error',
+                    'message': f"❌ **Clober Swap Failed**\n\n🚫 **Issue:** Orderbook swap encountered an error\n\n💡 **Possible causes:**\n• Order book state changed\n• Insufficient gas\n• Network congestion\n• Smart contract protection triggered\n\n🔧 **Details:** {str(e).replace('CLOBER_SWAP_FAILED: ', '')}",
+                    'show_retry': True,
+                    'error_code': 'CLOBER_SWAP_FAILED',
+                    'can_retry': True,
+                    'timestamp': datetime.now().isoformat()
+                }
+            
+            # Generic error classification
             error_type = self.error_handler.classify_error(str(e), e)
             return self.error_handler.get_error_response(error_type)
     
@@ -435,6 +550,70 @@ class ChatAI:
             return {
                 'success': False,
                 'error': 'Blockchain connection error',
+                'suggestion': f'System error: {str(e)}'
+            }
+    
+    def execute_two_step_swap_transaction(self, from_token: str, to_token: str, amount: float, user_address: str) -> dict:
+        """Execute two-step swap transaction: approval + swap"""
+        
+        try:
+            # Ensure wallet is connected before executing swap
+            if not wallet_manager.connected_wallet:
+                # Demo private key (not secure in production!)
+                simulated_private_key = "0xf38c811b61dc42e9b2dfa664d2ae2302c4958b5ff6ab607186b70e76e86802a6"
+                
+                # Connect wallet manager
+                wallet_result = wallet_manager.connect_with_private_key(simulated_private_key)
+                if not wallet_result['success']:
+                    return {
+                        'success': False,
+                        'error': f'Wallet connection failed: {wallet_result.get("error", "Unknown error")}'
+                    }
+            
+            # Execute two-step swap with wallet manager
+            result = wallet_manager.execute_two_step_swap(
+                from_token=from_token,
+                to_token=to_token,
+                amount=amount,
+                slippage=0.5  # 0.5% slippage
+            )
+            
+            # Check for specific Clober errors in result dictionary
+            if not result['success'] and 'error' in result:
+                error_msg = str(result['error'])
+                
+                # Raise specific Clober errors as exceptions so handle_swap_request can catch them
+                if 'CLOBER_LIVE_ORDERBOOK_REQUIRED' in error_msg:
+                    raise Exception(error_msg)
+                elif 'CLOBER_ORDER_NOT_EXISTS' in error_msg:
+                    raise Exception(error_msg)
+                elif 'CLOBER_ORDER_FILLED' in error_msg:
+                    raise Exception(error_msg)
+                elif 'CLOBER_SLIPPAGE_EXCEEDED' in error_msg:
+                    raise Exception(error_msg)
+                elif 'CLOBER_ORDER_EXPIRED' in error_msg:
+                    raise Exception(error_msg)
+                elif 'CLOBER_NO_LIQUIDITY' in error_msg:
+                    raise Exception(error_msg)
+                elif 'CLOBER_RPC_ERROR' in error_msg:
+                    raise Exception(error_msg)
+                elif 'CLOBER_NETWORK_ERROR' in error_msg:
+                    raise Exception(error_msg)
+                elif 'CLOBER_SWAP_FAILED' in error_msg:
+                    raise Exception(error_msg)
+            
+            return result
+                
+        except Exception as e:
+            # Re-raise specific Clober errors to be handled by upper level
+            if 'CLOBER_LIVE_ORDERBOOK_REQUIRED' in str(e):
+                raise e  # Let handle_swap_request handle this specific error
+            elif 'CLOBER_' in str(e):
+                raise e  # Let handle_swap_request handle all Clober-specific errors
+            
+            return {
+                'success': False,
+                'error': 'Two-step swap transaction error',
                 'suggestion': f'System error: {str(e)}'
             }
     

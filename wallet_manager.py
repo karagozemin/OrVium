@@ -284,34 +284,131 @@ class WalletManager:
                 'error': str(e)
             }
     
-    def approve_token(self, token: str, spender: str, amount: float = None) -> Dict:
-        """Token approval işlemi"""
+    def execute_token_approval(self, token: str, spender: str = None, amount: float = None) -> Dict:
+        """Execute real token approval transaction"""
         if not self.connected_wallet:
             return {
                 'success': False,
-                'error': 'Cüzdan bağlı değil'
+                'error': 'Wallet not connected'
             }
         
         try:
-            # Simüle edilmiş approval
-            import hashlib
-            approval_data = f"approve_{token}_{spender}_{amount}_{time.time()}"
-            tx_hash = '0x' + hashlib.sha256(approval_data.encode()).hexdigest()
+            # Execute real approval with blockchain integrator
+            from blockchain_integration import blockchain_integrator
             
-            return {
-                'success': True,
-                'tx_hash': tx_hash,
-                'token': token,
-                'spender': spender,
-                'amount': amount or 'unlimited',
-                'message': f'{token} approval işlemi başarılı',
-                'explorer_url': f"https://explorer.testnet.riselabs.xyz/tx/{tx_hash}"
-            }
+            approval_result = blockchain_integrator.execute_token_approval(
+                token=token,
+                spender=spender,
+                amount=amount
+            )
             
+            if approval_result['success']:
+                # Add to transaction history
+                transaction_record = {
+                    'tx_hash': approval_result['tx_hash'],
+                    'type': 'approval',
+                    'token': token,
+                    'spender': spender,
+                    'amount': amount,
+                    'timestamp': datetime.now().isoformat(),
+                    'status': approval_result.get('status', 'pending'),
+                    'gas_used': approval_result.get('gas_used', 0),
+                    'real_transaction': True
+                }
+                
+                self.transaction_history.append(transaction_record)
+                
+                return {
+                    'success': True,
+                    'tx_hash': approval_result['tx_hash'],
+                    'token': token,
+                    'spender': spender,
+                    'amount': amount,
+                    'gas_used': approval_result.get('gas_used', 0),
+                    'explorer_url': approval_result.get('explorer_url'),
+                    'status': approval_result.get('status', 'pending')
+                }
+            else:
+                return approval_result
+                
         except Exception as e:
             return {
                 'success': False,
-                'error': f'Approval hatası: {str(e)}'
+                'error': f'Token approval error: {str(e)}'
+            }
+
+    def execute_two_step_swap(self, from_token: str, to_token: str, amount: float, slippage: float = 0.5) -> Dict:
+        """Execute two-step swap: approval + swap for token-to-token swaps"""
+        if not self.connected_wallet:
+            return {
+                'success': False,
+                'error': 'Wallet not connected'
+            }
+        
+        try:
+            # Step 1: Check if approval is needed (for token-to-token swaps)
+            if from_token not in ['ETH', 'WETH']:
+                print(f"🔐 Step 1: Approving {from_token} for swap...")
+                
+                approval_result = self.execute_token_approval(
+                    token=from_token,
+                    amount=amount * 10  # Approve 10x more to be safe
+                )
+                
+                if not approval_result['success']:
+                    return {
+                        'success': False,
+                        'error': f'Approval failed: {approval_result.get("error", "Unknown error")}',
+                        'step': 'approval',
+                        'approval_tx_hash': approval_result.get('tx_hash')
+                    }
+                
+                print(f"✅ Approval successful: {approval_result['tx_hash']}")
+                
+                # Wait a bit for approval to be mined
+                import time
+                time.sleep(3)
+            
+            # Step 2: Execute the actual swap
+            print(f"🔄 Step 2: Executing swap {from_token} → {to_token}...")
+            
+            swap_result = self.execute_swap_transaction(
+                from_token=from_token,
+                to_token=to_token,
+                amount=amount,
+                slippage=slippage
+            )
+            
+            if swap_result['success']:
+                result = {
+                    'success': True,
+                    'swap_tx_hash': swap_result['tx_hash'],
+                    'amount_in': amount,
+                    'amount_out': swap_result.get('amount_out'),
+                    'gas_used': swap_result.get('gas_used', 0),
+                    'explorer_url': swap_result.get('explorer_url'),
+                    'status': swap_result.get('status', 'pending'),
+                    'steps': ['approval', 'swap'] if from_token not in ['ETH', 'WETH'] else ['swap']
+                }
+                
+                # Add approval info if it was needed
+                if from_token not in ['ETH', 'WETH']:
+                    result['approval_tx_hash'] = approval_result['tx_hash']
+                    result['approval_explorer_url'] = approval_result.get('explorer_url')
+                
+                return result
+            else:
+                return {
+                    'success': False,
+                    'error': f'Swap failed: {swap_result.get("error", "Unknown error")}',
+                    'step': 'swap',
+                    'approval_tx_hash': approval_result.get('tx_hash') if from_token not in ['ETH', 'WETH'] else None
+                }
+                
+        except Exception as e:
+            return {
+                'success': False,
+                'error': f'Two-step swap error: {str(e)}'
             }
 
 # Singleton instance
