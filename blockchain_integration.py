@@ -51,7 +51,7 @@ class BlockchainIntegrator:
             'WETH': '0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2',  # WETH address
             'USDC': '0x8A93d247134d91e0de6f96547cB0204e5BE8e5D8',  # RISE Chain testnet USDC
             'USDT': '0x40918Ba7f132E0aCba2CE4de4c4baF9BD2D7D849',  # RISE Chain testnet USDT
-            'RISE': '0xd6e1afe5ca8d00a2efc01b89997abe2de47fdfaf',  # RISE Chain testnet RISE
+            'RISE': '0xd6e1afe5cA8D00A2EFC01B89997abE2De47fdfAf',  # RISE Chain testnet RISE (checksum)
             'DAI': '0x6B175474E89094C44Da98b954EedeAC495271d0F',  # DAI address
         }
         
@@ -196,7 +196,7 @@ class BlockchainIntegrator:
             # Sign and send transaction
             signed_txn = account.sign_transaction(transaction)
             tx_hash = self.w3.eth.send_raw_transaction(signed_txn.rawTransaction)
-            tx_hash_hex = tx_hash.hex() if tx_hash.hex().startswith('0x') else '0x' + tx_hash.hex()
+            tx_hash_hex = tx_hash.hex()
             
             # Wait for receipt
             try:
@@ -314,7 +314,7 @@ class BlockchainIntegrator:
                 # İşlemi imzala ve gönder
                 signed_txn = account.sign_transaction(transaction)
                 tx_hash = self.w3.eth.send_raw_transaction(signed_txn.rawTransaction)
-                tx_hash_hex = tx_hash.hex() if tx_hash.hex().startswith('0x') else '0x' + tx_hash.hex()
+                tx_hash_hex = tx_hash.hex()
                 
                 # Receipt'i bekle
                 try:
@@ -382,7 +382,7 @@ class BlockchainIntegrator:
             # İşlemi imzala ve gönder
             signed_txn = account.sign_transaction(transaction)
             tx_hash = self.w3.eth.send_raw_transaction(signed_txn.rawTransaction)
-            tx_hash_hex = tx_hash.hex() if tx_hash.hex().startswith('0x') else '0x' + tx_hash.hex()
+            tx_hash_hex = tx_hash.hex()
             
             # Receipt bekle ve revert reason'ı yakala
             try:
@@ -514,7 +514,7 @@ class BlockchainIntegrator:
                 # Sign and send transaction
                 signed_txn = account.sign_transaction(transaction)
                 tx_hash = self.w3.eth.send_raw_transaction(signed_txn.rawTransaction)
-                tx_hash_hex = tx_hash.hex() if tx_hash.hex().startswith('0x') else '0x' + tx_hash.hex()
+                tx_hash_hex = tx_hash.hex()
                 
                 # Wait for receipt
                 try:
@@ -636,7 +636,7 @@ class BlockchainIntegrator:
             # Sign and send
             signed_txn = account.sign_transaction(transaction)
             tx_hash = self.w3.eth.send_raw_transaction(signed_txn.rawTransaction)
-            tx_hash_hex = '0x' + tx_hash.hex()
+            tx_hash_hex = tx_hash.hex()
             
             # Wait for receipt
             try:
