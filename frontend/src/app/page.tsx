@@ -144,7 +144,7 @@ export default function Home() {
 
   useEffect(() => {
     if (isConnected && isWalletAuthorized && messages.length === 0) {
-      addMessage('👋 **Hello! Welcome to AI Swap Assistant!**\n\n💱 **Available swaps:**\n\n🟡 **ETH → Others:**\n• "0.1 ETH to USDT"\n• "0.5 ETH to USDC"\n• "1 ETH to RISE"\n\n🔄 **Token ↔ Token:**\n• "10 USDT to USDC"\n• "100 USDT to RISE"\n• "50 USDC to RISE"\n\n💡 **What would you like to do?**', false, 'normal');
+      addMessage('👋 **Hello! Welcome to AI Swap Assistant!**\n\n💱 **Available swaps:**\n\n🟡 **ETH → Others:**\n• "0.1 ETH to USDT" - Active\n• "0.5 ETH to USDC" - Active\n• "1 ETH to RISE" - Active\n\n🔄 **Token ↔ Token:**\n• "10 USDT to USDC" - Active\n\n💡 **What would you like to do?**', false, 'normal');
     }
   }, [isConnected, isWalletAuthorized, messages.length]);
 

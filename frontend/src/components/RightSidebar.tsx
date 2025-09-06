@@ -41,16 +41,6 @@ const swapPairs: SwapPair[] = [
     icon: <ArrowPathIcon className="h-4 w-4 text-green-400" />
   },
   {
-    from: 'USDT',
-    to: 'RISE',
-    icon: <ArrowPathIcon className="h-4 w-4 text-purple-400" />
-  },
-  {
-    from: 'USDC',
-    to: 'RISE',
-    icon: <ArrowPathIcon className="h-4 w-4 text-purple-400" />
-  },
-  {
     from: 'RISE',
     to: 'USDT',
     icon: <ArrowPathIcon className="h-4 w-4 text-orange-400" />
