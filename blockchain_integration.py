@@ -844,7 +844,7 @@ class BlockchainIntegrator:
         print(f"🕐 Deadline: {deadline} ({deadline_hex})")
         print(f"📊 Function: 0xc0e8e89a (Clober Protocol)")
         
-        return '0x' + updated_data
+        return updated_data  # No 0x prefix for bytes.fromhex()
 
     def get_explorer_url(self, tx_hash: str, network: str = 'rise-testnet') -> str:
         """Blockchain explorer URL'ini oluştur"""
