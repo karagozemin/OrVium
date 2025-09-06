@@ -669,6 +669,10 @@ def chat_endpoint():
         })
         
     except Exception as e:
+        print(f"🚨 API Error: {str(e)}")
+        print(f"🚨 Exception Type: {type(e).__name__}")
+        import traceback
+        print(f"🚨 Traceback: {traceback.format_exc()}")
         return jsonify({'error': str(e)}), 500
 
 @app.route('/api/authorize_wallet', methods=['POST'])
@@ -711,7 +715,7 @@ def get_agents_status():
             'agents': {
                 'swap_agent': {
                     'status': 'active',
-                    'pools': len(swap_agent.liquidity_pools),
+                    'pools': len(swap_agent.pools),
                     'supported_tokens': ['WETH', 'USDT', 'USDC', 'RISE']
                 },
                 'blockchain_integrator': {
@@ -747,4 +751,4 @@ if __name__ == '__main__':
     print("  - POST /api/chat")
     print("  - GET  /api/agents/status")
     
-    app.run(host='0.0.0.0', port=8003, debug=True)
+    app.run(host='0.0.0.0', port=8000, debug=True)

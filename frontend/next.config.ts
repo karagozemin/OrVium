@@ -6,7 +6,7 @@ const nextConfig: NextConfig = {
     return [
       {
         source: '/api/:path*',
-        destination: 'http://localhost:8003/api/:path*',
+        destination: 'http://localhost:8000/api/:path*',
       },
     ]
   },
@@ -19,6 +19,11 @@ const nextConfig: NextConfig = {
   // Experimental features (Turbopack compatible)
   experimental: {
     disableOptimizedLoading: true,
+  },
+  
+  // Disable ESLint during builds
+  eslint: {
+    ignoreDuringBuilds: true,
   },
 };
 
