@@ -591,11 +591,33 @@ class BlockchainIntegrator:
             # transfer(address to, uint256 amount)
             token_contract = token_addresses[token]
             
-            # Calculate amount in token decimals
-            if token in ['USDT', 'USDC']:
-                token_amount = int(amount * 10**6)  # 6 decimals
-            else:  # RISE
-                token_amount = int(amount * 10**18)  # 18 decimals
+            # Calculate amount in token decimals (get actual decimals from contract)
+            try:
+                erc20_abi = [
+                    {
+                        "constant": True,
+                        "inputs": [],
+                        "name": "decimals",
+                        "outputs": [{"name": "", "type": "uint8"}],
+                        "type": "function"
+                    }
+                ]
+                
+                contract = self.w3.eth.contract(address=token_contract, abi=erc20_abi)
+                actual_decimals = contract.functions.decimals().call()
+                token_amount = int(amount * (10 ** actual_decimals))
+                
+                print(f"🐛 DEBUG: {token} decimals from contract: {actual_decimals}, amount: {amount} -> {token_amount} units")
+                
+            except Exception as e:
+                # Fallback to hardcoded values if contract call fails
+                print(f"⚠️ Could not get decimals from contract, using fallback: {e}")
+                if token in ['USDT']:
+                    token_amount = int(amount * 10**8)  # USDT has 8 decimals on RISE Chain
+                elif token in ['USDC']:
+                    token_amount = int(amount * 10**6)  # USDC has 6 decimals
+                else:  # RISE
+                    token_amount = int(amount * 10**18)  # 18 decimals
             
             # Validate receiver address
             if not self.w3.is_address(receiver):
