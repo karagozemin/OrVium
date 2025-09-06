@@ -408,29 +408,12 @@ class BlockchainIntegrator:
                         revert_msg = str(revert_error)
                         print(f"🚨 REVERT REASON: {revert_msg}")
                         
-                        # Handle RPC/Network issues first
-                        if 'block not found' in revert_msg.lower():
-                            raise Exception("CLOBER_RPC_ERROR: RPC node sync issue, transaction may have succeeded but confirmation failed")
-                        elif 'network error' in revert_msg.lower() or 'connection' in revert_msg.lower():
-                            raise Exception("CLOBER_NETWORK_ERROR: Network connectivity issue during transaction confirmation")
-                        
-                        # Clober-specific error handling
-                        elif 'OrderNotExists' in revert_msg:
-                            raise Exception("CLOBER_ORDER_NOT_EXISTS: Order hash is invalid or order has been filled/cancelled")
-                        elif 'OrderAlreadyFilled' in revert_msg:
-                            raise Exception("CLOBER_ORDER_FILLED: This order has already been completely filled")
-                        elif 'InsufficientAmount' in revert_msg or 'SlippageExceeded' in revert_msg:
-                            raise Exception("CLOBER_SLIPPAGE_EXCEEDED: MinAmountOut too high, reduce slippage tolerance")
-                        elif 'OrderExpired' in revert_msg:
-                            raise Exception("CLOBER_ORDER_EXPIRED: Order deadline has passed, need fresh order")
-                        elif 'InsufficientLiquidity' in revert_msg:
-                            raise Exception("CLOBER_NO_LIQUIDITY: No matching orders available for this trade")
-                        else:
-                            raise Exception(f"CLOBER_SWAP_FAILED: {revert_msg}")
+                        # Generic error handling
+                        raise Exception(f"SWAP_FAILED: {revert_msg}")
                             
             except Exception as e:
-                if 'CLOBER_' in str(e):
-                    raise e  # Re-raise Clober-specific errors
+                if 'RISE_USDT_NOT_SUPPORTED' in str(e):
+                    raise e  # Re-raise specific errors
                 status = 'pending'
                 gas_used = 150000
             
@@ -781,11 +764,11 @@ class BlockchainIntegrator:
         return full_data
     
     def _build_token_to_token_swap_data(self, from_token: str, to_token: str, amount: float, recipient_address: str) -> str:
-        """RISE Chain Clober Protocol formatında token-to-token swap data'sı"""
+        """RISE Chain swap protocol formatında token-to-token swap data'sı"""
         import time
         
         # Gerçek RISE Chain manuel transaction'dan alınan format
-        # Function signature: 0xc0e8e89a (Clober Protocol swap function)
+        # Function signature: 0xc0e8e89a (DEX Protocol swap function)
         function_sig = 'c0e8e89a'
         
         # Deadline hesaplama (4 saat - ultra güvenli)
@@ -839,10 +822,10 @@ class BlockchainIntegrator:
             updated_data = manuel_data.replace('68bc8498', deadline_hex)
             print(f"🎯 Default: Manuel başarılı transaction template kullanıldı")
         
-        print(f"🎯 RISE Chain Clober Protocol swap: {from_token} → {to_token}")
+        print(f"🎯 RISE Chain DEX Protocol swap: {from_token} → {to_token}")
         print(f"💰 Amount: {amount} {from_token} ({amount_in_wei} units)")
         print(f"🕐 Deadline: {deadline} ({deadline_hex})")
-        print(f"📊 Function: 0xc0e8e89a (Clober Protocol)")
+        print(f"📊 Function: 0xc0e8e89a (DEX Protocol)")
         
         return updated_data  # No 0x prefix for bytes.fromhex()
 
