@@ -35,15 +35,14 @@ class SwapAgent:
     def __init__(self):
         """Initialize Swap Agent"""
         
-        # Supported tokens (including ETH for user input)
-        self.supported_tokens = ['WETH', 'ETH', 'USDC', 'USDT', 'RISE']
+        # Supported tokens (including ETH for user input) - USDT kaldırıldı
+        self.supported_tokens = ['WETH', 'ETH', 'USDC', 'RISE']
         
-        # Token prices (simulated)
+        # Token prices (simulated) - USDT kaldırıldı
         self.token_prices = {
             'WETH': 2000.0,
             'ETH': 2000.0,  # Same as WETH
             'USDC': 1.0,
-            'USDT': 1.0,
             'RISE': 0.05  # RISE token fiyatı
         }
         
@@ -56,29 +55,22 @@ class SwapAgent:
         """Initialize liquidity pools"""
         pools = []
         
-        # Uniswap V2 style pools
+        # Uniswap V2 style pools - USDT pool'ları kaldırıldı
         uniswap_pools = [
             Pool("WETH/USDC", "WETH", "USDC", 1000, 2000000, 0.3, "uniswap"),
-            Pool("WETH/USDT", "WETH", "USDT", 800, 1600000, 0.3, "uniswap"),
-            Pool("USDC/USDT", "USDC", "USDT", 1500000, 1500000, 0.05, "uniswap"),  # Enhanced liquidity
             Pool("WETH/RISE", "WETH", "RISE", 100, 4000000, 0.3, "uniswap"),
             Pool("USDC/RISE", "USDC", "RISE", 50000, 1000000, 0.3, "uniswap"),
-            Pool("USDT/RISE", "USDT", "RISE", 50000, 1000000, 0.3, "uniswap"),  # Added USDT-RISE
         ]
         
-        # SushiSwap pools
+        # SushiSwap pools - USDT pool'ları kaldırıldı
         sushiswap_pools = [
             Pool("WETH/USDC", "WETH", "USDC", 800, 1600000, 0.25, "sushiswap"),
-            Pool("WETH/USDT", "WETH", "USDT", 600, 1200000, 0.25, "sushiswap"),
-            Pool("USDC/USDT", "USDC", "USDT", 1200000, 1200000, 0.05, "sushiswap"),  # Added USDC-USDT
-            Pool("RISE/USDT", "RISE", "USDT", 2000000, 100000, 0.25, "sushiswap"),
-            Pool("RISE/USDC", "RISE", "USDC", 2000000, 100000, 0.25, "sushiswap"),  # Added RISE-USDC
+            Pool("RISE/USDC", "RISE", "USDC", 2000000, 100000, 0.25, "sushiswap"),
         ]
         
-        # 1inch aggregator pools
+        # 1inch aggregator pools - USDT pool'ları kaldırıldı
         oneinch_pools = [
             Pool("WETH/USDC", "WETH", "USDC", 1200, 2400000, 0.1, "1inch"),
-            Pool("USDT/USDC", "USDT", "USDC", 800000, 800000, 0.05, "1inch"),  # Added USDT-USDC
             Pool("RISE/WETH", "RISE", "WETH", 5000000, 125, 0.2, "1inch"),
         ]
         

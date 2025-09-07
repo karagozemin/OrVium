@@ -22,11 +22,6 @@ interface TokenInfo {
 const swapPairs: SwapPair[] = [
   {
     from: 'ETH',
-    to: 'USDT',
-    icon: <ArrowPathIcon className="h-4 w-4 text-blue-400" />
-  },
-  {
-    from: 'ETH',
     to: 'USDC',
     icon: <ArrowPathIcon className="h-4 w-4 text-blue-400" />
   },
@@ -34,16 +29,6 @@ const swapPairs: SwapPair[] = [
     from: 'ETH',
     to: 'RISE',
     icon: <ArrowPathIcon className="h-4 w-4 text-blue-400" />
-  },
-  {
-    from: 'USDT',
-    to: 'USDC',
-    icon: <ArrowPathIcon className="h-4 w-4 text-green-400" />
-  },
-  {
-    from: 'RISE',
-    to: 'USDT',
-    icon: <ArrowPathIcon className="h-4 w-4 text-orange-400" />
   }
 ];
 
@@ -52,11 +37,6 @@ const supportedTokens: TokenInfo[] = [
     symbol: 'ETH',
     name: 'Ethereum',
     icon: <CircleStackIcon className="h-5 w-5 text-blue-400" />
-  },
-  {
-    symbol: 'USDT',
-    name: 'Tether USD',
-    icon: <CurrencyDollarIcon className="h-5 w-5 text-green-400" />
   },
   {
     symbol: 'USDC',
@@ -115,7 +95,7 @@ export default function RightSidebar() {
           </div>
           <div className="p-3 bg-gradient-to-r from-green-500/10 to-blue-500/10 border border-green-400/20 rounded-lg">
             <p className="text-xs text-gray-300 mb-2">
-              with RISE Chain's tokens
+              with RISE Chain&apos;s tokens
             </p>
             <div className="space-y-2">
               {supportedTokens.map((token, index) => (
@@ -141,13 +121,12 @@ export default function RightSidebar() {
           <div className="space-y-2">
             <div className="p-3 bg-white/5 border border-white/10 rounded-lg">
               <p className="text-xs text-gray-300 mb-1">Swap Examples:</p>
-              <p className="text-sm text-white font-mono">"0.1 ETH to USDT"</p>
-              <p className="text-sm text-white font-mono">"0.5 ETH to USDC"</p>
-              <p className="text-sm text-white font-mono">"1 ETH to RISE"</p>
+              <p className="text-sm text-white font-mono">&quot;0.5 ETH to USDC&quot;</p>
+              <p className="text-sm text-white font-mono">&quot;1 ETH to RISE&quot;</p>
             </div>
             <div className="p-3 bg-white/5 border border-white/10 rounded-lg">
               <p className="text-xs text-gray-300 mb-1">Transfer:</p>
-              <p className="text-sm text-white font-mono">"send 0.0001 eth 0x..."</p>
+              <p className="text-sm text-white font-mono">&quot;send 0.0001 eth 0x...&quot;</p>
             </div>
           </div>
         </div>

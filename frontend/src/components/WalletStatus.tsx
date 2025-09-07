@@ -65,7 +65,7 @@ export function WalletStatus({ className = '' }: WalletStatusProps) {
     return `${addr.slice(0, 6)}...${addr.slice(-4)}`;
   };
 
-  const formatBalance = (bal: any) => {
+  const formatBalance = (bal: { formatted: string; symbol?: string } | undefined) => {
     if (!bal) return '0.0000';
     const num = parseFloat(bal.formatted);
     return num.toFixed(4);

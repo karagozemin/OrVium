@@ -1,19 +1,15 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useAccount, useSignMessage } from 'wagmi';
 import { 
   PaperAirplaneIcon,
   CpuChipIcon,
   ExclamationTriangleIcon,
   CheckCircleIcon,
-  ClockIcon,
   ArrowPathIcon
 } from '@heroicons/react/24/outline';
 import RightSidebar from '@/components/RightSidebar';
-import { WalletConnection } from '@/components/WalletConnection';
-import { useWalletAuth } from '@/hooks/useWalletAuth';
-import { useMetaMaskSigning } from '@/hooks/useMetaMaskSigning';
 
 interface Message {
   id: string;
@@ -25,11 +21,6 @@ interface Message {
   showExplorer?: boolean;
   canRetry?: boolean;
   originalMessage?: string;
-  swapDetails?: {
-    from_token: string;
-    to_token: string;
-    amount: number;
-  };
 }
 
 export default function Home() {
@@ -37,35 +28,125 @@ export default function Home() {
   const [inputMessage, setInputMessage] = useState('');
   const [isTyping, setIsTyping] = useState(false);
   const [mounted, setMounted] = useState(false);
+  const [walletSignature, setWalletSignature] = useState<string>('');
+  const [isWalletAuthorized, setIsWalletAuthorized] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   
-  const { isConnected, address, chainId } = useAccount();
-  const { 
-    isAuthorized, 
-    sessionId, 
-    hasPrivateKey, 
-    authMethod 
-  } = useWalletAuth();
+  const { isConnected, address } = useAccount();
   
-  const { executeSwapWithMetaMask } = useMetaMaskSigning();
-  
-  const { signMessageAsync, error: signError } = useSignMessage();
+  // Load authorization state from localStorage
+  useEffect(() => {
+    if (typeof window !== 'undefined' && address) {
+      const savedAuth = localStorage.getItem('wallet_auth');
+      const savedSignature = localStorage.getItem('wallet_signature');
+      
+      if (savedAuth && savedSignature) {
+        try {
+          const authData = JSON.parse(savedAuth);
+          // Check if the saved auth is for the same address and not expired
+          if (authData.address === address && Date.now() - authData.timestamp < 24 * 60 * 60 * 1000) { // 24 hours
+            setIsWalletAuthorized(true);
+            setWalletSignature(savedSignature);
+          } else {
+            // Clean up expired or different address auth
+            localStorage.removeItem('wallet_auth');
+            localStorage.removeItem('wallet_signature');
+          }
+        } catch {
+          // Clean up corrupted localStorage data
+          localStorage.removeItem('wallet_auth');
+          localStorage.removeItem('wallet_signature');
+        }
+      }
+    } else if (typeof window !== 'undefined' && !address) {
+      // Clean up if no address (wallet disconnected)
+      localStorage.removeItem('wallet_auth');
+      localStorage.removeItem('wallet_signature');
+    }
+  }, [address]);
+  const { signMessageAsync } = useSignMessage();
+
+  const requestWalletAuthorization = React.useCallback(async () => {
+    if (!isConnected || !address) {
+      return;
+    }
+    
+    try {
+      const message = `Welcome to AI Swap Assistant!\n\nThis signature is to authorize your wallet for swap operations.\n\nAddress: ${address}\nTime: ${new Date().toISOString()}`;
+      
+      const signature = await signMessageAsync({ message });
+      
+      if (signature) {
+        setWalletSignature(signature);
+        setIsWalletAuthorized(true);
+        
+        // Save to localStorage
+        if (typeof window !== 'undefined') {
+          localStorage.setItem('wallet_signature', signature);
+          localStorage.setItem('wallet_auth', JSON.stringify({
+            address,
+            timestamp: Date.now()
+          }));
+        }
+        
+        // Backend'e signature'ı gönder
+        try {
+          await fetch('/api/authorize_wallet', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              address,
+              signature,
+              message
+            })
+          });
+        } catch {
+          // Backend error shouldn't prevent frontend authorization
+          console.warn('Backend authorization failed, but continuing with frontend auth');
+        }
+      }
+    } catch (error: unknown) {
+      // Only log if it's not a user rejection
+      const errorObj = error as { name?: string; message?: string };
+      if (errorObj.name !== 'UserRejectedRequestError' && !errorObj.message?.includes('rejected')) {
+        console.error('Wallet authorization error:', error);
+      }
+    }
+  }, [isConnected, address, signMessageAsync]);
 
   useEffect(() => {
     setMounted(true);
   }, []);
+  
+  useEffect(() => {
+    if (isConnected && address && !isWalletAuthorized) {
+      // Small delay to ensure wallet is fully connected
+      const timer = setTimeout(() => {
+        requestWalletAuthorization();
+      }, 500);
+      return () => clearTimeout(timer);
+    }
+
+    if (!isConnected) {
+      setIsWalletAuthorized(false);
+      setWalletSignature('');
+      // Clear localStorage when wallet disconnected
+      if (typeof window !== 'undefined') {
+        localStorage.removeItem('wallet_auth');
+        localStorage.removeItem('wallet_signature');
+      }
+    }
+  }, [isConnected, address, isWalletAuthorized, requestWalletAuthorization]);
 
   useEffect(() => {
     scrollToBottom();
   }, [messages]);
 
   useEffect(() => {
-    if (isConnected && isAuthorized && messages.length === 0) {
-      const welcomeMessage = `👋 **Hello! Welcome to AI Swap Assistant!**\n\n💱 **Available swaps:**\n\n🟡 **ETH → Others:**\n• "0.1 ETH to USDT" - Active\n• "0.5 ETH to USDC" - Active\n• "1 ETH to RISE" - Active\n\n🔄 **Token ↔ Token:**\n• "10 USDT to USDC" - Active\n\n🔐 **Connection Status:**\n• Method: ${authMethod === 'signature' ? 'MetaMask Signature' : authMethod === 'private_key' ? 'Private Key' : 'Seed Phrase'}\n• Full Access: ${hasPrivateKey ? 'Yes' : 'No (MetaMask confirmation required)'}\n\n💡 **What would you like to do?**`;
-      
-      addMessage(welcomeMessage, false, 'normal');
+    if (isConnected && isWalletAuthorized && messages.length === 0) {
+      addMessage('👋 **Hello! Welcome to AI Swap Assistant!**\n\n💱 **Available swaps:**\n\n🟡 **ETH → Others:**\n• "0.1 ETH to USDT" - Active\n• "0.5 ETH to USDC" - Active\n• "1 ETH to RISE" - Active\n\n🔄 **Token ↔ Token:**\n• "10 USDT to USDC" - Active\n\n💡 **What would you like to do?**', false, 'normal');
     }
-  }, [isConnected, isAuthorized, messages.length, authMethod, hasPrivateKey]);
+  }, [isConnected, isWalletAuthorized, messages.length]);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -94,38 +175,6 @@ export default function Home() {
     }
   };
 
-  const handleMetaMaskSwap = async (swapDetails: any) => {
-    try {
-      addTypingIndicator();
-      addMessage('🔐 MetaMask işlemi başlatılıyor...', false, 'normal');
-
-      const result = await executeSwapWithMetaMask({
-        fromToken: swapDetails.from_token,
-        toToken: swapDetails.to_token,
-        amount: swapDetails.amount,
-        sessionId: sessionId || undefined
-      });
-
-      removeTypingIndicator();
-
-      if (result.success) {
-        addMessage(
-          `✅ **MetaMask Swap Başarılı!**\n\n💰 **İşlem:** ${swapDetails.amount} ${swapDetails.from_token} → ${swapDetails.to_token}\n\n🔗 **Transaction Hash:** \`${result.txHash}\`\n\n📊 **Explorer:** [View Transaction](${result.explorerUrl})`,
-          false,
-          'success',
-          result.txHash
-        );
-      }
-    } catch (error: any) {
-      removeTypingIndicator();
-      addMessage(
-        `❌ **MetaMask İşlem Hatası**\n\n🚫 ${error.message}\n\n💡 **Çözümler:**\n• MetaMask'ta işlemi onaylayın\n• Yeterli bakiye olduğundan emin olun\n• Gas ücretlerini kontrol edin`,
-        false,
-        'error'
-      );
-    }
-  };
-
   const addTypingIndicator = () => {
     setIsTyping(true);
   };
@@ -149,21 +198,15 @@ export default function Home() {
     addTypingIndicator();
 
     try {
-      // Send to backend chat API with session support
-      const requestBody: any = {
-        message,
-        user_address: address || null
-      };
-
-      // Add session ID if available
-      if (sessionId) {
-        requestBody.session_id = sessionId;
-      }
-
-      const response = await fetch('http://localhost:8000/api/chat', {
+      // Send to backend chat API
+      const response = await fetch('/api/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(requestBody)
+        body: JSON.stringify({
+          message,
+          user_address: address || null,
+          signature: walletSignature
+        })
       });
 
       const data = await response.json();
@@ -172,45 +215,18 @@ export default function Home() {
       removeTypingIndicator();
 
       if (data.success) {
-        const response = data.response;
-        
-        // Handle MetaMask signing required
-        if (response.type === 'metamask_signing_required') {
-          addMessage(response.message, false, 'warning');
-          
-          // Add MetaMask action button
-          addMessage(
-            '🚀 **MetaMask ile İşlem Yap**\n\nAşağıdaki butona tıklayarak MetaMask ile işlemi gerçekleştirin.',
-            false,
-            'normal'
-          );
-          
-          // We'll add a special message with MetaMask button
-          const metamaskMessage: Message = {
-            id: `${Date.now()}-metamask-action`,
-            content: 'MetaMask Action Required',
-            isUser: false,
-            timestamp: new Date(),
-            type: 'normal',
-            // Store swap details for the button
-            swapDetails: response.swap_details
-          };
-          setMessages(prev => [...prev, metamaskMessage]);
-          return;
-        }
-        
-        const messageType = response.type === 'swap_success' || response.type === 'transfer_success' ? 'success' :
-                          response.type === 'error' || response.type === 'swap_error' ? 'swap_error' : 
-                          response.type === 'help' ? 'normal' :
+        const messageType = data.response.type === 'swap_success' || data.response.type === 'transfer_success' ? 'success' :
+                          data.response.type === 'error' || data.response.type === 'swap_error' ? 'swap_error' : 
+                          data.response.type === 'help' ? 'normal' :
                           'normal';
         
         addMessage(
-          response.message, 
+          data.response.message, 
           false, 
           messageType,
-          response.tx_hash,
-          response.can_retry,
-          response.can_retry ? message : undefined
+          data.response.tx_hash,
+          data.response.can_retry,
+          data.response.can_retry ? message : undefined
         );
 
         // Show additional info for successful swaps
@@ -235,9 +251,10 @@ export default function Home() {
         addMessage(`❌ An error occurred: ${data.error || 'Unknown error'}`, false, 'error');
       }
 
-    } catch (error: any) {
+    } catch (error: unknown) {
       removeTypingIndicator();
-      addMessage(`❌ Connection error: ${error.message}`, false, 'error');
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      addMessage(`❌ Connection error: ${errorMessage}`, false, 'error');
     }
   };
 
@@ -289,20 +306,14 @@ export default function Home() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-900 via-purple-900 to-violet-900">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {!isConnected || !isAuthorized ? (
-          <div className="flex items-center justify-center min-h-[80vh]">
-            <div className="max-w-md w-full">
-              <div className="text-center mb-8">
-                <div className="w-20 h-20 rounded-2xl bg-gradient-to-r from-blue-500 to-purple-600 flex items-center justify-center mx-auto mb-6">
-                  <CpuChipIcon className="h-10 w-10 text-white" />
-                </div>
-                <h1 className="text-4xl font-bold text-white mb-4">AI Swap Assistant</h1>
-                <p className="text-xl text-gray-300 mb-2">Token swap operations on RISE Chain testnet</p>
-                <p className="text-gray-400">Connect and authorize your wallet to continue</p>
-              </div>
-              
-              <WalletConnection />
+        {!isConnected || !isWalletAuthorized ? (
+          <div className="text-center py-20">
+            <div className="w-20 h-20 rounded-2xl bg-gradient-to-r from-blue-500 to-purple-600 flex items-center justify-center mx-auto mb-8">
+              <CpuChipIcon className="h-10 w-10 text-white" />
             </div>
+            <h1 className="text-4xl font-bold text-white mb-4">AI Swap Assistant</h1>
+            <p className="text-xl text-gray-300 mb-8">Token swap operations on RISE Chain testnet</p>
+            <p className="text-gray-400">Connect your wallet to continue</p>
           </div>
         ) : (
           <div className="flex space-x-6">
@@ -358,24 +369,6 @@ export default function Home() {
                               <ArrowPathIcon className="w-3 h-3" />
                               <span>Try Again</span>
                             </button>
-                          </div>
-                        )}
-
-                        {/* MetaMask Action Button */}
-                        {message.swapDetails && (
-                          <div className="mt-3 pt-3 border-t border-white/20">
-                            <button
-                              onClick={() => handleMetaMaskSwap(message.swapDetails)}
-                              className="inline-flex items-center space-x-2 text-sm bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 text-white px-4 py-2 rounded-lg transition-all transform hover:scale-105 font-medium"
-                            >
-                              <div className="w-5 h-5 bg-white rounded-full flex items-center justify-center">
-                                <span className="text-orange-600 text-xs font-bold">M</span>
-                              </div>
-                              <span>MetaMask ile İşlem Yap</span>
-                            </button>
-                            <div className="mt-2 text-xs text-gray-400">
-                              {message.swapDetails.amount} {message.swapDetails.from_token} → {message.swapDetails.to_token}
-                            </div>
                           </div>
                         )}
                         
@@ -436,13 +429,13 @@ export default function Home() {
                     value={inputMessage}
                     onChange={(e) => setInputMessage(e.target.value)}
                     onKeyPress={handleKeyPress}
-                    placeholder={isConnected && isAuthorized ? "Type your message... (e.g. 0.1 ETH to USDT)" : isConnected ? "Authorize your wallet first..." : "Connect your wallet first..."}
-                    disabled={!isConnected || !isAuthorized}
+                    placeholder={isConnected ? "Type your message... (e.g. 0.1 ETH to USDT)" : "Connect your wallet first..."}
+                    disabled={!isConnected}
                     className="flex-1 bg-white/10 border border-white/20 rounded-xl px-4 py-3 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:opacity-50 disabled:cursor-not-allowed"
                   />
                   <button
                     onClick={() => handleSendMessage()}
-                    disabled={!inputMessage.trim() || !isConnected || !isAuthorized || isTyping}
+                    disabled={!inputMessage.trim() || !isConnected || isTyping}
                     className="bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 disabled:opacity-50 disabled:cursor-not-allowed text-white p-3 rounded-xl transition-all duration-200 transform hover:scale-105"
                   >
                     <PaperAirplaneIcon className="h-5 w-5" />
