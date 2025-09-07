@@ -4,6 +4,7 @@ import "./globals.css";
 import "@rainbow-me/rainbowkit/styles.css";
 import { Providers } from "./providers";
 import Navbar from "../components/Navbar";
+import Footer from "../components/Footer";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -16,10 +17,10 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "AI Swap Assistant - RISE Chain",
-  description: "AI-powered token swap operations on RISE Chain testnet",
-  keywords: ["DeFi", "AI", "Blockchain", "RISE Chain", "Swap", "Testnet"],
-  authors: [{ name: "RISE Labs" }],
+  title: "Orvium Rise Tool - RISE Chain",
+  description: "Advanced DeFi tool for RISE Chain testnet operations",
+  keywords: ["DeFi", "Tool", "Blockchain", "RISE Chain", "Orvium", "Testnet"],
+  authors: [{ name: "Orvium Labs" }],
   robots: "noindex, nofollow", // Development environment
   other: {
     'theme-color': '#667eea',
@@ -40,11 +41,16 @@ export default function RootLayout({
   return (
     <html lang="en" className="dark">
       <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased bg-gradient-to-br from-gray-900 via-purple-900 to-violet-900 min-h-screen`}
+        className={`${geistSans.variable} ${geistMono.variable} antialiased bg-gradient-to-br from-black via-gray-900 to-purple-900/30 min-h-screen`}
       >
         <Providers>
-          <Navbar />
-          {children}
+          <div className="flex flex-col min-h-screen">
+            <Navbar />
+            <main className="flex-1">
+              {children}
+            </main>
+            <Footer />
+          </div>
         </Providers>
       </body>
     </html>

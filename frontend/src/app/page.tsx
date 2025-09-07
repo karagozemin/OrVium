@@ -10,6 +10,7 @@ import {
   ArrowPathIcon
 } from '@heroicons/react/24/outline';
 import RightSidebar from '@/components/RightSidebar';
+import OrviumLogo from '@/components/OrviumLogo';
 
 interface Message {
   id: string;
@@ -72,7 +73,7 @@ export default function Home() {
     }
     
     try {
-      const message = `Welcome to AI Swap Assistant!\n\nThis signature is to authorize your wallet for swap operations.\n\nAddress: ${address}\nTime: ${new Date().toISOString()}`;
+      const message = `Welcome to Orvium Rise Tool!\n\nThis signature is to authorize your wallet for DeFi operations.\n\nAddress: ${address}\nTime: ${new Date().toISOString()}`;
       
       const signature = await signMessageAsync({ message });
       
@@ -144,7 +145,7 @@ export default function Home() {
 
   useEffect(() => {
     if (isConnected && isWalletAuthorized && messages.length === 0) {
-      addMessage('👋 **Hello! Welcome to AI Swap Assistant!**\n\n💱 **Available swaps:**\n\n🟡 **ETH → Others:**\n• "0.1 ETH to USDT" - Active\n• "0.5 ETH to USDC" - Active\n• "1 ETH to RISE" - Active\n\n🔄 **Token ↔ Token:**\n• "10 USDT to USDC" - Active\n\n💡 **What would you like to do?**', false, 'normal');
+      addMessage('👋 **Hello! Welcome to Orvium Rise Tool!**\n\n🚀 **Available operations:**\n\n🟡 **ETH → Others:**\n• "0.1 ETH to USDT" - Active\n• "0.5 ETH to USDC" - Active\n• "1 ETH to RISE" - Active\n\n🔄 **Token ↔ Token:**\n• "10 USDT to USDC" - Active\n\n💡 **What would you like to do?**', false, 'normal');
     }
   }, [isConnected, isWalletAuthorized, messages.length]);
 
@@ -304,43 +305,41 @@ export default function Home() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-900 via-purple-900 to-violet-900">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+    <div className="min-h-screen bg-gradient-to-br from-black via-gray-900 to-purple-900/30">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
         {!isConnected || !isWalletAuthorized ? (
-          <div className="text-center py-20">
-            <div className="w-20 h-20 rounded-2xl bg-gradient-to-r from-blue-500 to-purple-600 flex items-center justify-center mx-auto mb-8">
-              <CpuChipIcon className="h-10 w-10 text-white" />
+          <div className="text-center py-20 animate-fade-in">
+            <div className="mx-auto mb-8">
+              <OrviumLogo size="xl" className="animate-pulse-glow hover:scale-110 transition-transform duration-300" />
             </div>
-            <h1 className="text-4xl font-bold text-white mb-4">AI Swap Assistant</h1>
-            <p className="text-xl text-gray-300 mb-8">Token swap operations on RISE Chain testnet</p>
+            <h1 className="text-4xl font-bold text-white mb-4">Orvium Rise Tool</h1>
+            <p className="text-xl text-gray-300 mb-8">Advanced DeFi operations on RISE Chain testnet</p>
             <p className="text-gray-400">Connect your wallet to continue</p>
           </div>
         ) : (
-          <div className="flex space-x-6">
+          <div className="flex space-x-6 h-[calc(100vh-120px)]">
             {/* Main Chat Interface */}
-            <div className="flex-1 bg-white/5 backdrop-blur-xl border border-white/10 rounded-2xl shadow-2xl overflow-hidden h-[640px] flex flex-col">
-              <div className="flex items-center justify-center border-b border-white/10 p-4 bg-gradient-to-r from-blue-500/10 to-purple-600/10">
-                <div className="flex items-center space-x-3">
-                  <div className="w-9 h-9 bg-gradient-to-r from-blue-500 to-purple-600 rounded-xl flex items-center justify-center">
-                    <CpuChipIcon className="h-5 w-5 text-white" />
-                  </div>
+            <div className="flex-1 bg-black/40 backdrop-blur-xl border border-white/10 rounded-2xl shadow-2xl overflow-hidden flex flex-col animate-slide-up hover:shadow-3xl transition-all duration-500">
+              <div className="flex items-center justify-center border-b border-white/10 p-4 bg-gradient-to-r from-black/50 to-purple-600/10">
+                <div className="flex items-center space-x-3 animate-fade-in-delay">
+                  <OrviumLogo size="lg" className="animate-spin-slow hover:animate-pulse" />
                   <div>
-                    <h2 className="text-lg font-semibold text-white">AI Swap Assistant</h2>
+                    <h2 className="text-lg font-semibold text-white">Orvium Rise Tool</h2>
                     <p className="text-xs text-gray-300">RISE Chain Testnet</p>
                   </div>
                 </div>
               </div>
 
-              <div className="flex-1 overflow-y-auto p-6 space-y-4">
+              <div className="flex-1 overflow-y-auto p-6 space-y-4 scrollbar-hide">
                 {messages.map((message) => (
                   <div
                     key={message.id}
-                    className={`flex ${message.isUser ? 'justify-end' : 'justify-start'}`}
+                    className={`flex ${message.isUser ? 'justify-end' : 'justify-start'} animate-message-appear`}
                   >
                     <div className={`flex items-start space-x-3 max-w-[80%] ${message.isUser ? 'flex-row-reverse space-x-reverse' : ''}`}>
                       <div className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 ${
                         message.isUser 
-                          ? 'bg-gradient-to-r from-blue-500 to-purple-600' 
+                          ? 'bg-gradient-to-r from-gray-700 to-purple-600/80 shadow-lg border border-purple-500/20' 
                           : `border ${getMessageBorderColor(message.type)}`
                       }`}>
                         {message.isUser ? (
@@ -352,7 +351,7 @@ export default function Home() {
 
                       <div className={`px-4 py-3 rounded-2xl border ${
                         message.isUser 
-                          ? 'bg-gradient-to-r from-blue-500 to-purple-600 text-white border-transparent' 
+                          ? 'bg-gradient-to-r from-gray-700 to-purple-600/80 text-white border-purple-500/20 shadow-lg' 
                           : `${getMessageBorderColor(message.type)} text-white`
                       } ${message.isUser ? 'rounded-br-md' : 'rounded-bl-md'}`}>
                         <div 
@@ -436,7 +435,7 @@ export default function Home() {
                   <button
                     onClick={() => handleSendMessage()}
                     disabled={!inputMessage.trim() || !isConnected || isTyping}
-                    className="bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 disabled:opacity-50 disabled:cursor-not-allowed text-white p-3 rounded-xl transition-all duration-200 transform hover:scale-105"
+                    className="bg-gradient-to-r from-gray-700 to-purple-600/80 hover:from-gray-600 hover:to-purple-600 disabled:opacity-50 disabled:cursor-not-allowed text-white p-3 rounded-xl transition-all duration-200 transform hover:scale-105 shadow-lg border border-purple-500/20"
                   >
                     <PaperAirplaneIcon className="h-5 w-5" />
                   </button>

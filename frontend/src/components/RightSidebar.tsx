@@ -60,7 +60,7 @@ export default function RightSidebar() {
       </div>
 
       {/* Content */}
-      <div className="flex-1 overflow-y-auto p-4 space-y-6">
+      <div className="flex-1 overflow-y-auto p-4 space-y-6 scrollbar-hide">
         {/* Available Swaps Section */}
         <div>
           <div className="flex items-center space-x-2 mb-3">
