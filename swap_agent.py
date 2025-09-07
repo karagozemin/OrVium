@@ -105,14 +105,18 @@ class SwapAgent:
             Dict: Route details and results
         """
         
-        if from_token not in self.supported_tokens or to_token not in self.supported_tokens:
+        # Convert ETH to WETH for routing (ETH and WETH are equivalent for swaps)
+        routing_from_token = 'WETH' if from_token == 'ETH' else from_token
+        routing_to_token = 'WETH' if to_token == 'ETH' else to_token
+        
+        if routing_from_token not in self.supported_tokens or routing_to_token not in self.supported_tokens:
             return {
                 'success': False,
                 'error': f'Unsupported token: {from_token} or {to_token}',
                 'supported_tokens': self.supported_tokens
             }
         
-        if from_token == to_token:
+        if routing_from_token == routing_to_token:
             return {
                 'success': False,
                 'error': 'Source and target token cannot be the same'
@@ -125,11 +129,11 @@ class SwapAgent:
             }
         
         try:
-            # Direkt swap rotalarını bul
-            direct_routes = self._find_direct_routes(from_token, to_token, amount)
+            # Direkt swap rotalarını bul (routing tokens kullan)
+            direct_routes = self._find_direct_routes(routing_from_token, routing_to_token, amount)
             
-            # Multi-hop rotalarını bul
-            multi_hop_routes = self._find_multi_hop_routes(from_token, to_token, amount)
+            # Multi-hop rotalarını bul (routing tokens kullan)
+            multi_hop_routes = self._find_multi_hop_routes(routing_from_token, routing_to_token, amount)
             
             # Tüm rotaları birleştir
             all_routes = direct_routes + multi_hop_routes

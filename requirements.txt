@@ -39,3 +39,6 @@ colorlog==6.7.0
 # Blockchain integration
 web3==6.11.3
 eth-account==0.9.0
+
+# Security and encryption
+cryptography==41.0.7

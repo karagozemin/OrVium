@@ -27,7 +27,7 @@ export function useSwap() {
   const chainId = useChainId();
   const { data: balance } = useBalance({ address });
 
-  const executeSwap = useCallback(async (params: SwapParams) => {
+  const executeSwap = useCallback(async (params: SwapParams, sessionId?: string) => {
     if (!isConnected || !address) {
       setSwapState({
         isLoading: false,
@@ -37,8 +37,6 @@ export function useSwap() {
       return;
     }
 
-    // Wallet should already be authorized via signature
-
     setSwapState({
       isLoading: true,
       error: null,
@@ -46,64 +44,23 @@ export function useSwap() {
     });
 
     try {
-      // First, get the best swap route
-      const routeResponse = await fetch('/api/find_route', {
+      // Execute the swap via chat API with session support
+      const requestBody: any = {
+        message: `${params.amount} ${params.fromToken} to ${params.toToken}`,
+        user_address: address,
+      };
+
+      // Add session ID if provided
+      if (sessionId) {
+        requestBody.session_id = sessionId;
+      }
+
+      const chatResponse = await fetch('http://localhost:8000/api/chat', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({
-          from_token: params.fromToken,
-          to_token: params.toToken,
-          amount: params.amount,
-        }),
-      });
-
-      if (!routeResponse.ok) {
-        throw new Error('Failed to find swap route');
-      }
-
-      const routeData = await routeResponse.json();
-
-      if (!routeData.success) {
-        throw new Error(routeData.error || 'No route found');
-      }
-
-      // Security check with phishing detector
-      const securityResponse = await fetch('/api/analyze_transaction', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          to_address: routeData.route_details.contract_address,
-          from_address: address,
-          value: params.amount,
-          data: '0x', // Swap data would go here
-          gas_limit: routeData.route_details.estimated_gas,
-        }),
-      });
-
-      if (!securityResponse.ok) {
-        throw new Error('Security check failed');
-      }
-
-      const securityData = await securityResponse.json();
-
-      if (securityData.risk_score > 70) {
-        throw new Error(`High risk transaction detected: ${securityData.description}`);
-      }
-
-      // Execute the swap via chat API
-      const chatResponse = await fetch('http://localhost:8003/api/chat', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          message: `${params.amount} ${params.fromToken} to ${params.toToken}`,
-          user_address: address,
-        }),
+        body: JSON.stringify(requestBody),
       });
 
       if (!chatResponse.ok) {
@@ -126,6 +83,8 @@ export function useSwap() {
           txHash: response.tx_hash,
           explorerUrl: response.explorer_url,
         });
+      } else if (response.type === 'swap_error') {
+        throw new Error(response.message || 'Swap failed');
       } else {
         throw new Error(response.message || 'Swap failed');
       }

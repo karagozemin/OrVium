@@ -9,6 +9,7 @@ import time
 from typing import Dict, Optional, List
 from dataclasses import dataclass
 from datetime import datetime
+from security_utils import wallet_security, validate_ethereum_address
 
 @dataclass
 class WalletInfo:
@@ -25,12 +26,13 @@ class WalletManager:
         self.connected_wallet: Optional[WalletInfo] = None
         self.private_key: Optional[str] = None
         self.transaction_history: List[Dict] = []
+        self.encrypted_credentials: Dict[str, Dict] = {}  # Store encrypted credentials by address
         
         # Gerçek blockchain bağlantısı için Web3
         from blockchain_integration import blockchain_integrator
         self.blockchain = blockchain_integrator
         
-        print("💳 Wallet Manager initialized")
+        print("💳 Wallet Manager initialized with security layer")
     
     def connect_with_metamask(self) -> Dict:
         """MetaMask ile bağlan (gerçek bağlantı gerekli)"""
@@ -48,13 +50,15 @@ class WalletManager:
                 'error': f'MetaMask bağlantı hatası: {str(e)}'
             }
     
-    def connect_with_private_key(self, private_key: str) -> Dict:
+    def connect_with_private_key(self, private_key: str, store_encrypted: bool = True) -> Dict:
         """Private key ile bağlan"""
         try:
-            if not private_key or len(private_key) < 60:
+            # Validate private key format
+            validation_result = wallet_security.validate_private_key(private_key)
+            if not validation_result['valid']:
                 return {
                     'success': False,
-                    'error': 'Geçersiz private key formatı'
+                    'error': f'Invalid private key: {validation_result["error"]}'
                 }
             
             # Gerçek private key bağlantısı
@@ -67,6 +71,19 @@ class WalletManager:
             # Gerçek blockchain bakiyesi al
             real_balance_wei = self.blockchain.w3.eth.get_balance(real_address)
             real_balance_eth = self.blockchain.w3.from_wei(real_balance_wei, 'ether')
+            
+            # Store encrypted credentials if requested
+            if store_encrypted:
+                try:
+                    encrypted_data = wallet_security.encrypt_private_key(private_key, real_address)
+                    self.encrypted_credentials[real_address] = {
+                        'type': 'private_key',
+                        'encrypted_data': encrypted_data,
+                        'created_at': datetime.now().isoformat()
+                    }
+                    print(f"🔐 Private key encrypted and stored for {real_address}")
+                except Exception as e:
+                    print(f"⚠️ Failed to encrypt private key: {e}")
             
             wallet_info = WalletInfo(
                 address=real_address,
@@ -87,27 +104,43 @@ class WalletManager:
                 'address': wallet_info.address,
                 'balance_eth': wallet_info.balance_eth,
                 'method': 'private_key',
-                'message': 'Private key bağlantısı başarılı'
+                'message': 'Private key connection successful',
+                'encrypted_stored': store_encrypted and real_address in self.encrypted_credentials
             }
             
         except Exception as e:
             return {
                 'success': False,
-                'error': f'Private key bağlantı hatası: {str(e)}'
+                'error': f'Private key connection error: {str(e)}'
             }
     
-    def connect_with_mnemonic(self, mnemonic: str) -> Dict:
+    def connect_with_mnemonic(self, mnemonic: str, store_encrypted: bool = True) -> Dict:
         """Mnemonic phrase ile bağlan"""
         try:
-            words = mnemonic.strip().split()
-            if len(words) not in [12, 24]:
+            # Validate seed phrase format
+            validation_result = wallet_security.validate_seed_phrase(mnemonic)
+            if not validation_result['valid']:
                 return {
                     'success': False,
-                    'error': 'Mnemonic phrase 12 veya 24 kelime olmalı'
+                    'error': f'Invalid seed phrase: {validation_result["error"]}'
                 }
             
-            # Simüle edilmiş mnemonic bağlantısı
+            # For demo purposes, use simulated connection
+            # In production, use proper mnemonic to private key derivation
             simulated_address = "0xABCDEF123456789012345678901234567890ABCD"
+            
+            # Store encrypted credentials if requested
+            if store_encrypted:
+                try:
+                    encrypted_data = wallet_security.encrypt_seed_phrase(mnemonic, simulated_address)
+                    self.encrypted_credentials[simulated_address] = {
+                        'type': 'seed_phrase',
+                        'encrypted_data': encrypted_data,
+                        'created_at': datetime.now().isoformat()
+                    }
+                    print(f"🔐 Seed phrase encrypted and stored for {simulated_address}")
+                except Exception as e:
+                    print(f"⚠️ Failed to encrypt seed phrase: {e}")
             
             wallet_info = WalletInfo(
                 address=simulated_address,
@@ -130,13 +163,14 @@ class WalletManager:
                 'address': wallet_info.address,
                 'balance_eth': wallet_info.balance_eth,
                 'method': 'mnemonic',
-                'message': 'Mnemonic bağlantısı başarılı'
+                'message': 'Seed phrase connection successful',
+                'encrypted_stored': store_encrypted and simulated_address in self.encrypted_credentials
             }
             
         except Exception as e:
             return {
                 'success': False,
-                'error': f'Mnemonic bağlantı hatası: {str(e)}'
+                'error': f'Seed phrase connection error: {str(e)}'
             }
     
     def disconnect_wallet(self) -> Dict:

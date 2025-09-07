@@ -195,7 +195,7 @@ class BlockchainIntegrator:
             
             # Sign and send transaction
             signed_txn = account.sign_transaction(transaction)
-            tx_hash = self.w3.eth.send_raw_transaction(signed_txn.rawTransaction)
+            tx_hash = self.w3.eth.send_raw_transaction(signed_txn.raw_transaction)
             tx_hash_hex = tx_hash.hex()
             
             # Wait for receipt
@@ -304,7 +304,7 @@ class BlockchainIntegrator:
                 transaction = {
                     'to': router_address,
                     'value': self.w3.to_wei(swap_amount, 'ether'),
-                    'gas': 700000,  # Başarılı transaction'daki gas limit
+                    'gas': 200000,  # Gerçek transaction'dan daha düşük
                     'gasPrice': self.w3.to_wei('0.0001', 'gwei'),  # Başarılı transaction'daki gas price
                     'nonce': nonce,
                     'chainId': 11155931,
@@ -313,7 +313,7 @@ class BlockchainIntegrator:
                 
                 # İşlemi imzala ve gönder
                 signed_txn = account.sign_transaction(transaction)
-                tx_hash = self.w3.eth.send_raw_transaction(signed_txn.rawTransaction)
+                tx_hash = self.w3.eth.send_raw_transaction(signed_txn.raw_transaction)
                 tx_hash_hex = tx_hash.hex()
                 
                 # Receipt'i bekle
@@ -381,7 +381,7 @@ class BlockchainIntegrator:
             
             # İşlemi imzala ve gönder
             signed_txn = account.sign_transaction(transaction)
-            tx_hash = self.w3.eth.send_raw_transaction(signed_txn.rawTransaction)
+            tx_hash = self.w3.eth.send_raw_transaction(signed_txn.raw_transaction)
             tx_hash_hex = tx_hash.hex()
             
             # Receipt bekle ve revert reason'ı yakala
@@ -513,7 +513,7 @@ class BlockchainIntegrator:
                 
                 # Sign and send transaction
                 signed_txn = account.sign_transaction(transaction)
-                tx_hash = self.w3.eth.send_raw_transaction(signed_txn.rawTransaction)
+                tx_hash = self.w3.eth.send_raw_transaction(signed_txn.raw_transaction)
                 tx_hash_hex = tx_hash.hex()
                 
                 # Wait for receipt
@@ -657,7 +657,7 @@ class BlockchainIntegrator:
             
             # Sign and send
             signed_txn = account.sign_transaction(transaction)
-            tx_hash = self.w3.eth.send_raw_transaction(signed_txn.rawTransaction)
+            tx_hash = self.w3.eth.send_raw_transaction(signed_txn.raw_transaction)
             tx_hash_hex = tx_hash.hex()
             
             # Wait for receipt
