@@ -11,6 +11,7 @@ import sys
 from swap_agent import SwapAgent
 from blockchain_integration import blockchain_integrator
 from wallet_manager import wallet_manager
+from phishing_detector import phishing_detector
 
 app = Flask(__name__)
 CORS(app)
@@ -307,6 +308,148 @@ class ChatAI:
             'original_message': message
         }
     
+    def parse_verify_request(self, message: str) -> dict:
+        """Extract verify request from message"""
+        
+        # Verify patterns
+        verify_patterns = [
+            r'verify\s+(0x[a-fA-F0-9]{40})',  # verify 0x123...
+            r'check\s+(0x[a-fA-F0-9]{40})',   # check 0x123...
+            r'analyze\s+(0x[a-fA-F0-9]{40})', # analyze 0x123...
+            r'güvenlik\s+(0x[a-fA-F0-9]{40})', # Turkish: güvenlik 0x123...
+            r'kontrol\s+(0x[a-fA-F0-9]{40})'  # Turkish: kontrol 0x123...
+        ]
+        
+        for pattern in verify_patterns:
+            match = re.search(pattern, message, re.IGNORECASE)
+            if match:
+                address = match.group(1)
+                return {
+                    'is_verify_request': True,
+                    'address': address,
+                    'original_message': message
+                }
+        
+        return {
+            'is_verify_request': False,
+            'address': None,
+            'original_message': message
+        }
+    
+    def handle_verify_request(self, verify_request: dict) -> dict:
+        """Handle address verification request"""
+        
+        address = verify_request['address']
+        
+        try:
+            # Async verification'ı sync wrapper ile çalıştır
+            import asyncio
+            
+            # Event loop kontrolü
+            try:
+                loop = asyncio.get_event_loop()
+                if loop.is_running():
+                    # Eğer loop zaten çalışıyorsa, thread pool kullan
+                    import concurrent.futures
+                    with concurrent.futures.ThreadPoolExecutor() as executor:
+                        future = executor.submit(asyncio.run, phishing_detector.verify_address(address))
+                        analysis = future.result(timeout=30)
+                else:
+                    # Loop çalışmıyorsa direkt çalıştır
+                    analysis = asyncio.run(phishing_detector.verify_address(address))
+            except RuntimeError:
+                # Fallback: yeni event loop oluştur
+                loop = asyncio.new_event_loop()
+                asyncio.set_event_loop(loop)
+                try:
+                    analysis = loop.run_until_complete(phishing_detector.verify_address(address))
+                finally:
+                    loop.close()
+            
+            # Sonucu formatla
+            return self.format_verify_response(analysis)
+            
+        except Exception as e:
+            print(f"🚨 Verify error: {str(e)}")
+            return {
+                'type': 'verify_error',
+                'message': f"❌ **Verification Failed**\n\n🔍 **Address:** `{address}`\n\n⚠️ **Error:** {str(e)}\n\n💡 **Try again in a few moments**",
+                'can_retry': True,
+                'timestamp': datetime.now().isoformat()
+            }
+    
+    def format_verify_response(self, analysis: dict) -> dict:
+        """Format verification response for chat"""
+        
+        address = analysis['address']
+        risk_level = analysis['risk_level']
+        risk_score = analysis['overall_risk_score']
+        is_safe = analysis['is_safe']
+        warnings = analysis.get('warnings', [])
+        recommendations = analysis.get('recommendations', [])
+        sources = analysis.get('sources_checked', [])
+        
+        if risk_level == 'invalid':
+            message = f"❌ **INVALID ADDRESS**\n\n🔍 Address: `{address}`\nIssue: Invalid Ethereum address format\nCorrect format: 0x followed by 40 hex characters"
+        
+        elif risk_level == 'error':
+            message = f"⚠️ **VERIFICATION ERROR**\n\n🔍 Address: `{address}`\nStatus: Analysis temporarily unavailable"
+        
+        else:
+            # Normal verification result
+            if is_safe:
+                safety_emoji = "✅"
+                safety_status = "SAFE"
+            else:
+                safety_emoji = "⚠️" if risk_score < 60 else "🚨"
+                safety_status = "RISKY"
+            
+            message = f"🛡️ **ADDRESS VERIFICATION COMPLETE**\n\n"
+            message += f"🔍 Address: `{address[:10]}...{address[-8:]}`\n"
+            message += f"{safety_emoji} Status: {safety_status}\n"
+            message += f"📊 Risk Score: {risk_score:.0f}/100\n"
+            message += f"📈 Risk Level: {risk_level.upper()}\n\n"
+            
+            # Sources
+            if sources:
+                source_names = {
+                    'local_blacklist': 'Local Database',
+                    'goplus_security': 'GoPlus Security',
+                    'etherscamdb': 'EtherScamDB'
+                }
+                checked_sources = [source_names.get(s, s) for s in sources]
+                message += f"🔍 Sources Checked: {', '.join(checked_sources)}\n\n"
+            
+            # Warnings
+            if warnings:
+                message += "⚠️ **SECURITY WARNINGS:**\n"
+                for warning in warnings[:3]:  # İlk 3 warning
+                    clean_warning = warning.replace('🚨', '').replace('🍯', '').replace('⚠️', '').replace('📋', '').replace('✅', '').strip()
+                    message += f"• {clean_warning}\n"
+                if len(warnings) > 3:
+                    message += f"• ... and {len(warnings) - 3} more warnings\n"
+                message += "\n"
+            
+            # Recommendations
+            if recommendations:
+                message += "💡 **RECOMMENDATIONS:**\n"
+                for rec in recommendations[:3]:  # İlk 3 recommendation
+                    clean_rec = rec.replace('🚨', '').replace('🔒', '').replace('📞', '').replace('🕵️', '').replace('⚠️', '').replace('🔍', '').replace('💰', '').replace('📋', '').replace('⚡', '').replace('✅', '').replace('💵', '').replace('🕒', '').replace('🔄', '').replace('📊', '').strip()
+                    message += f"• {clean_rec}\n"
+                if len(recommendations) > 3:
+                    message += f"• ... and {len(recommendations) - 3} more recommendations\n"
+        
+        return {
+            'type': 'address_verification',
+            'message': message,
+            'verification_result': analysis,
+            'is_safe': is_safe,
+            'risk_level': risk_level,
+            'risk_score': risk_score,
+            'can_retry': risk_level in ['error'],
+            'timestamp': datetime.now().isoformat()
+        }
+    
     def process_message(self, message: str, user_address: str = None, session_info: dict = None, has_metamask_auth: bool = False) -> dict:
         """Process chat message and generate response"""
         
@@ -317,6 +460,11 @@ class ChatAI:
             'user_message': message,
             'user_address': user_address
         })
+        
+        # Check for verify command first
+        verify_request = self.parse_verify_request(message)
+        if verify_request['is_verify_request']:
+            return self.handle_verify_request(verify_request)
         
         # First check for transfer request
         transfer_request = self.parse_transfer_request(message)
@@ -823,6 +971,10 @@ class ChatAI:
 • "transfer 0.001 usdt to 0x123..."
 • "gönder 0.5 rise 0xabc..."
 
+🛡️ **For security:**
+• "verify 0x123..." - Check address safety
+• "check 0x456..." - Phishing detection
+
 🪙 **Supported tokens:**
 • ETH, USDT, USDC, RISE
 
@@ -848,6 +1000,10 @@ class ChatAI:
 • "50 USDC to ETH" 
 • "1 ETH to RISE"
 
+🛡️ **Security features:**
+• "verify 0x123..." - Check address safety
+• "check 0x456..." - Phishing detection
+
 ⚡ **Real RISE Chain testnet transactions**
 
 💡 **How else can I help you?**""",
@@ -865,6 +1021,10 @@ class ChatAI:
 • "0.1 ETH to USDT"
 • "2 ETH to RISE"
 • "5 USDC to ETH"
+
+🛡️ **For security checks:**
+• "verify 0x123..." - Check address safety
+• "check 0x456..." - Phishing detection
 
 💡 **Type "help" for more information!**
 
