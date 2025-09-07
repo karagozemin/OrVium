@@ -733,10 +733,14 @@ class ChatAI:
             }
         
         try:
+            print(f"🔍 DEBUG: Starting swap - {amount} {from_token} → {to_token}")
+            
             # Find best route with error handling
             route_result = swap_agent.find_best_swap_route(from_token, to_token, amount)
+            print(f"🔍 DEBUG: Route result: {route_result}")
             
             if not route_result.get('success'):
+                print(f"🔍 DEBUG: Route finding failed: {route_result.get('error', 'Unknown error')}")
                 error_type = self.error_handler.classify_error(route_result.get('error', ''))
                 return self.error_handler.get_error_response(
                     error_type, 
@@ -745,13 +749,18 @@ class ChatAI:
             
             # Determine if we need approval (token-to-token swaps)
             needs_approval = from_token not in ['ETH', 'WETH']
+            print(f"🔍 DEBUG: Needs approval: {needs_approval}")
             
             if needs_approval:
+                print(f"🔍 DEBUG: Executing two-step swap")
                 # Execute two-step swap (approval + swap)
                 tx_result = self.execute_two_step_swap_transaction(from_token, to_token, amount, user_address)
             else:
+                print(f"🔍 DEBUG: Executing single-step swap")
                 # Execute single-step swap (ETH to token)
                 tx_result = self.execute_swap_transaction(from_token, to_token, amount, user_address)
+            
+            print(f"🔍 DEBUG: Transaction result: {tx_result}")
             
             if tx_result['success']:
                 # Build success message
@@ -1131,7 +1140,10 @@ def chat_endpoint():
         # Add MetaMask authentication info
         has_metamask_auth = bool(metamask_signature and metamask_message)
         
+        print(f"🔍 DEBUG: Processing message: '{message}' for address: {user_address}")
         response = chat_ai.process_message(message, user_address, session_info, has_metamask_auth)
+        print(f"🔍 DEBUG: Chat AI response type: {response.get('type', 'unknown')}")
+        print(f"🔍 DEBUG: Chat AI response: {response}")
         
         # Add session info to response
         response_data = {

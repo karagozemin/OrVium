@@ -42,7 +42,7 @@ export function useWalletAuth() {
 
   const checkSessionStatus = useCallback(async (sessionId: string) => {
     try {
-      const response = await fetch('http://localhost:8000/api/session/status', {
+      const response = await fetch('/api/session/status', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ session_id: sessionId })
@@ -120,7 +120,7 @@ export function useWalletAuth() {
       }
 
       // Backend'e authorization gönder
-      const response = await fetch('http://localhost:8000/api/authorize_wallet', {
+      const response = await fetch('/api/authorize_wallet', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(authPayload)

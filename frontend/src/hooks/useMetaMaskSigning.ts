@@ -26,7 +26,7 @@ export function useMetaMaskSigning() {
 
     try {
       // 1. Backend'den transaction data hazırla
-      const response = await fetch('http://localhost:8000/api/prepare_swap', {
+      const response = await fetch('/api/prepare_swap', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

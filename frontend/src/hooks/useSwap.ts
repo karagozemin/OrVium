@@ -55,7 +55,7 @@ export function useSwap() {
         requestBody.session_id = sessionId;
       }
 
-      const chatResponse = await fetch('http://localhost:8000/api/chat', {
+      const chatResponse = await fetch('/api/chat', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

@@ -195,7 +195,11 @@ class BlockchainIntegrator:
             
             # Sign and send transaction
             signed_txn = account.sign_transaction(transaction)
-            tx_hash = self.w3.eth.send_raw_transaction(signed_txn.raw_transaction)
+            # Modern web3.py compatibility
+            raw_tx = getattr(signed_txn, 'rawTransaction', getattr(signed_txn, 'raw_transaction', None))
+            if raw_tx is None:
+                raise AttributeError("Cannot find raw transaction data")
+            tx_hash = self.w3.eth.send_raw_transaction(raw_tx)
             tx_hash_hex = tx_hash.hex()
             
             # Wait for receipt
@@ -313,7 +317,11 @@ class BlockchainIntegrator:
                 
                 # İşlemi imzala ve gönder
                 signed_txn = account.sign_transaction(transaction)
-                tx_hash = self.w3.eth.send_raw_transaction(signed_txn.raw_transaction)
+                # Modern web3.py compatibility
+                raw_tx = getattr(signed_txn, 'rawTransaction', getattr(signed_txn, 'raw_transaction', None))
+                if raw_tx is None:
+                    raise AttributeError("Cannot find raw transaction data")
+                tx_hash = self.w3.eth.send_raw_transaction(raw_tx)
                 tx_hash_hex = tx_hash.hex()
                 
                 # Receipt'i bekle
@@ -381,7 +389,11 @@ class BlockchainIntegrator:
             
             # İşlemi imzala ve gönder
             signed_txn = account.sign_transaction(transaction)
-            tx_hash = self.w3.eth.send_raw_transaction(signed_txn.raw_transaction)
+            # Modern web3.py compatibility
+            raw_tx = getattr(signed_txn, 'rawTransaction', getattr(signed_txn, 'raw_transaction', None))
+            if raw_tx is None:
+                raise AttributeError("Cannot find raw transaction data")
+            tx_hash = self.w3.eth.send_raw_transaction(raw_tx)
             tx_hash_hex = tx_hash.hex()
             
             # Receipt bekle ve revert reason'ı yakala
@@ -513,7 +525,11 @@ class BlockchainIntegrator:
                 
                 # Sign and send transaction
                 signed_txn = account.sign_transaction(transaction)
-                tx_hash = self.w3.eth.send_raw_transaction(signed_txn.raw_transaction)
+                # Modern web3.py uses rawTransaction instead of raw_transaction
+                raw_tx = getattr(signed_txn, 'rawTransaction', getattr(signed_txn, 'raw_transaction', None))
+                if raw_tx is None:
+                    raise AttributeError("Cannot find raw transaction data")
+                tx_hash = self.w3.eth.send_raw_transaction(raw_tx)
                 tx_hash_hex = tx_hash.hex()
                 
                 # Wait for receipt
@@ -657,7 +673,11 @@ class BlockchainIntegrator:
             
             # Sign and send
             signed_txn = account.sign_transaction(transaction)
-            tx_hash = self.w3.eth.send_raw_transaction(signed_txn.raw_transaction)
+            # Modern web3.py compatibility
+            raw_tx = getattr(signed_txn, 'rawTransaction', getattr(signed_txn, 'raw_transaction', None))
+            if raw_tx is None:
+                raise AttributeError("Cannot find raw transaction data")
+            tx_hash = self.w3.eth.send_raw_transaction(raw_tx)
             tx_hash_hex = tx_hash.hex()
             
             # Wait for receipt
