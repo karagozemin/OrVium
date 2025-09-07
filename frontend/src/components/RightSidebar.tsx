@@ -126,7 +126,11 @@ export default function RightSidebar() {
             </div>
             <div className="p-3 bg-white/5 border border-white/10 rounded-lg">
               <p className="text-xs text-gray-300 mb-1">Transfer:</p>
-              <p className="text-sm text-white font-mono">&quot;send 0.0001 eth 0x...&quot;</p>
+              <p className="text-sm text-white font-mono">&quot;send 0.0001 eth to 0x...&quot;</p>
+            </div>
+            <div className="p-3 bg-white/5 border border-white/10 rounded-lg">
+              <p className="text-xs text-gray-300 mb-1">Bulk Transfer:</p>
+              <p className="text-sm text-white font-mono">&quot;send 0.003 eth to 0x...,0x...,0x...&quot;</p>
             </div>
           </div>
         </div>

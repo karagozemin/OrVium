@@ -221,33 +221,78 @@ class ChatAI:
         }
     
     def parse_transfer_request(self, message: str) -> dict:
-        """Extract transfer request from natural language message"""
+        """Extract transfer request from natural language message - supports bulk transfers"""
         
+        # Token mapping
+        token_map = {
+            'ETH': 'ETH', 'WETH': 'WETH', 'USDT': 'USDT', 
+            'USDC': 'USDC', 'DAI': 'DAI', 'RISE': 'RISE'
+        }
         
-        # Transfer patterns: send amount token address
-        transfer_patterns = [
+        # Bulk transfer patterns: send amount token to address1,address2,address3
+        bulk_transfer_patterns = [
+            r'send\s+(\d+(?:\.\d+)?)\s+(\w+)\s+to\s+((?:0x[a-fA-F0-9]{40}(?:\s*,\s*)?)+)',  # send 0.1 eth to 0x123,0x456,0x789
+            r'transfer\s+(\d+(?:\.\d+)?)\s+(\w+)\s+to\s+((?:0x[a-fA-F0-9]{40}(?:\s*,\s*)?)+)',  # transfer 0.1 eth to 0x123,0x456
+            r'gönder\s+(\d+(?:\.\d+)?)\s+(\w+)\s+((?:0x[a-fA-F0-9]{40}(?:\s*,\s*)?)+)',  # Turkish: gönder 0.1 eth 0x123,0x456
+        ]
+        
+        # Check for bulk transfers first
+        for pattern in bulk_transfer_patterns:
+            match = re.search(pattern, message.lower())
+            if match:
+                amount = float(match.group(1))
+                token = match.group(2).upper()
+                addresses_str = match.group(3)
+                
+                # Parse addresses from comma-separated string
+                addresses = []
+                for addr in addresses_str.split(','):
+                    addr = addr.strip()
+                    if len(addr) == 42 and addr.startswith('0x'):
+                        addresses.append(addr)
+                
+                mapped_token = token_map.get(token, token)
+                
+                if len(addresses) > 1:  # Bulk transfer
+                    return {
+                        'is_transfer_request': True,
+                        'is_bulk_transfer': True,
+                        'amount': amount,
+                        'token': mapped_token,
+                        'receivers': addresses,
+                        'receiver_count': len(addresses),
+                        'total_amount': amount * len(addresses),
+                        'original_message': message
+                    }
+                elif len(addresses) == 1:  # Single transfer
+                    return {
+                        'is_transfer_request': True,
+                        'is_bulk_transfer': False,
+                        'amount': amount,
+                        'token': mapped_token,
+                        'receiver': addresses[0],
+                        'original_message': message
+                    }
+        
+        # Single transfer patterns: send amount token address (legacy support)
+        single_transfer_patterns = [
             r'send\s+(\d+(?:\.\d+)?)\s+(\w+)\s+(0x[a-fA-F0-9]{40})',  # send 0.1 eth 0x123...
             r'transfer\s+(\d+(?:\.\d+)?)\s+(\w+)\s+to\s+(0x[a-fA-F0-9]{40})',  # transfer 0.1 eth to 0x123...
             r'gönder\s+(\d+(?:\.\d+)?)\s+(\w+)\s+(0x[a-fA-F0-9]{40})',  # Turkish: gönder 0.1 eth 0x123...
         ]
         
-        for pattern in transfer_patterns:
+        for pattern in single_transfer_patterns:
             match = re.search(pattern, message.lower())
             if match:
                 amount = float(match.group(1))
                 token = match.group(2).upper()
                 receiver = match.group(3)
                 
-                # Token mapping
-                token_map = {
-                    'ETH': 'ETH', 'WETH': 'WETH', 'USDT': 'USDT', 
-                    'USDC': 'USDC', 'DAI': 'DAI', 'RISE': 'RISE'
-                }
-                
                 mapped_token = token_map.get(token, token)
                 
                 return {
                     'is_transfer_request': True,
+                    'is_bulk_transfer': False,
                     'amount': amount,
                     'token': mapped_token,
                     'receiver': receiver,
@@ -288,10 +333,17 @@ class ChatAI:
         return self.handle_general_message(message)
     
     def handle_transfer_request(self, transfer_request: dict, user_address: str) -> dict:
-        """Handle transfer request with comprehensive error handling"""
+        """Handle transfer request with comprehensive error handling - supports bulk transfers"""
         
         print(f"🐛 DEBUG: handle_transfer_request called with: {transfer_request}")  # Debug log
         
+        # Check if this is a bulk transfer
+        is_bulk = transfer_request.get('is_bulk_transfer', False)
+        
+        if is_bulk:
+            return self.handle_bulk_transfer_request(transfer_request, user_address)
+        
+        # Handle single transfer (existing logic)
         amount = transfer_request['amount']
         token = transfer_request['token']
         receiver = transfer_request['receiver']
@@ -333,6 +385,141 @@ class ChatAI:
                 
         except Exception as e:
             print(f"🐛 DEBUG: Exception in handle_transfer_request: {str(e)}")  # Debug log
+            error_type = self.error_handler.classify_error(str(e), e)
+            return self.error_handler.get_error_response(error_type)
+    
+    def handle_bulk_transfer_request(self, transfer_request: dict, user_address: str) -> dict:
+        """Handle bulk transfer request - send same amount to multiple addresses"""
+        
+        print(f"🐛 DEBUG: handle_bulk_transfer_request called with: {transfer_request}")  # Debug log
+        
+        amount = transfer_request['amount']
+        token = transfer_request['token']
+        receivers = transfer_request['receivers']
+        receiver_count = transfer_request['receiver_count']
+        total_amount = transfer_request['total_amount']
+        
+        print(f"🐛 DEBUG: Bulk Transfer params - Amount per address: {amount}, Token: {token}, Receivers: {len(receivers)}, Total: {total_amount}")
+        
+        # Input validation
+        if amount <= 0:
+            return self.error_handler.get_error_response('INVALID_AMOUNT')
+        
+        if receiver_count > 20:  # Limit bulk transfers to 20 addresses
+            return self.error_handler.get_error_response(
+                'GENERIC_ERROR',
+                '❌ **Too Many Addresses**\n\n🚫 Maximum 20 addresses allowed for bulk transfer\n\n💡 **Current:** {} addresses\n\n🔄 **Please split into smaller batches**'.format(receiver_count)
+            )
+        
+        if token not in ['ETH', 'WETH', 'USDT', 'USDC', 'RISE']:
+            return self.error_handler.get_error_response('UNSUPPORTED_TOKEN')
+        
+        # Validate all addresses
+        invalid_addresses = []
+        for addr in receivers:
+            if not addr or len(addr) != 42 or not addr.startswith('0x'):
+                invalid_addresses.append(addr)
+        
+        if invalid_addresses:
+            return self.error_handler.get_error_response(
+                'GENERIC_ERROR',
+                '❌ **Invalid Addresses Found**\n\n🔗 Invalid addresses: {}\n\n💡 **Format:** 0x followed by 40 characters'.format(', '.join(invalid_addresses))
+            )
+        
+        try:
+            # Execute bulk transfer transactions
+            results = []
+            successful_transfers = 0
+            failed_transfers = 0
+            total_gas_used = 0
+            
+            for i, receiver in enumerate(receivers):
+                print(f"🐛 DEBUG: Processing transfer {i+1}/{len(receivers)} to {receiver}")
+                
+                tx_result = self.execute_transfer_transaction(amount, token, receiver, user_address)
+                
+                if tx_result['success']:
+                    successful_transfers += 1
+                    total_gas_used += tx_result.get('gas_used', 0)
+                    results.append({
+                        'address': receiver,
+                        'success': True,
+                        'tx_hash': tx_result['tx_hash'],
+                        'gas_used': tx_result.get('gas_used', 0)
+                    })
+                else:
+                    failed_transfers += 1
+                    results.append({
+                        'address': receiver,
+                        'success': False,
+                        'error': tx_result.get('error', 'Unknown error')
+                    })
+            
+            # Build response message
+            if successful_transfers == receiver_count:
+                # All transfers successful
+                message = f"✅ **Bulk Transfer Completed!**\n\n💸 **Sent:** {amount} {token} each to {receiver_count} addresses\n\n📊 **Total Amount:** {total_amount} {token}\n\n✅ **Successful:** {successful_transfers}/{receiver_count}\n\n⛽ **Total Gas:** {total_gas_used} units"
+                
+                # Add transaction hashes
+                message += "\n\n🔗 **Transaction Hashes:**\n"
+                for result in results[:5]:  # Show first 5 tx hashes
+                    message += f"• `{result['tx_hash']}`\n"
+                
+                if len(results) > 5:
+                    message += f"• ... and {len(results) - 5} more transactions"
+                
+                return {
+                    'type': 'bulk_transfer_success',
+                    'message': message,
+                    'tx_hash': results[0]['tx_hash'] if results else None,  # First tx for explorer
+                    'bulk_results': results,
+                    'successful_count': successful_transfers,
+                    'failed_count': failed_transfers,
+                    'total_gas_used': total_gas_used,
+                    'show_explorer_link': True,
+                    'can_retry': False
+                }
+            
+            elif successful_transfers > 0:
+                # Partial success
+                message = f"⚠️ **Bulk Transfer Partially Completed**\n\n💸 **Amount per address:** {amount} {token}\n\n📊 **Results:**\n✅ **Successful:** {successful_transfers}/{receiver_count}\n❌ **Failed:** {failed_transfers}/{receiver_count}\n\n⛽ **Gas Used:** {total_gas_used} units"
+                
+                # Show successful transactions
+                successful_results = [r for r in results if r['success']]
+                if successful_results:
+                    message += "\n\n🔗 **Successful Transfers:**\n"
+                    for result in successful_results[:3]:
+                        message += f"• `{result['tx_hash']}` → {result['address'][:10]}...\n"
+                
+                return {
+                    'type': 'bulk_transfer_partial',
+                    'message': message,
+                    'tx_hash': successful_results[0]['tx_hash'] if successful_results else None,
+                    'bulk_results': results,
+                    'successful_count': successful_transfers,
+                    'failed_count': failed_transfers,
+                    'total_gas_used': total_gas_used,
+                    'show_explorer_link': successful_transfers > 0,
+                    'can_retry': True
+                }
+            
+            else:
+                # All transfers failed
+                message = f"❌ **Bulk Transfer Failed**\n\n💸 **Attempted:** {amount} {token} to {receiver_count} addresses\n\n📊 **All {receiver_count} transfers failed**"
+                
+                # Show first few errors
+                message += "\n\n🚨 **Sample Errors:**\n"
+                for result in results[:3]:
+                    if not result['success']:
+                        message += f"• {result['address'][:10]}...: {result['error'][:50]}...\n"
+                
+                return self.error_handler.get_error_response(
+                    'GENERIC_ERROR',
+                    message
+                )
+                
+        except Exception as e:
+            print(f"🐛 DEBUG: Exception in handle_bulk_transfer_request: {str(e)}")
             error_type = self.error_handler.classify_error(str(e), e)
             return self.error_handler.get_error_response(error_type)
     
