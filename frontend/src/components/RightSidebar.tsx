@@ -4,7 +4,8 @@ import {
   ArrowPathIcon,
   CurrencyDollarIcon,
   BanknotesIcon,
-  CircleStackIcon
+  CircleStackIcon,
+  ShieldCheckIcon
 } from '@heroicons/react/24/outline';
 
 interface SwapPair {
@@ -112,6 +113,33 @@ export default function RightSidebar() {
           </div>
         </div>
 
+        {/* Phishing Detector Section */}
+        <div>
+          <div className="flex items-center space-x-2 mb-3">
+            <ShieldCheckIcon className="h-5 w-5 text-orange-400" />
+            <h4 className="text-sm font-semibold text-white">Phishing Detector</h4>
+          </div>
+          <div className="p-3 bg-gradient-to-r from-orange-500/10 to-red-500/10 border border-orange-400/20 rounded-lg">
+            <p className="text-xs text-gray-300 mb-2">
+              Check address safety before transactions
+            </p>
+            <div className="space-y-2">
+              <div className="flex items-center space-x-2 text-sm">
+                <ShieldCheckIcon className="h-4 w-4 text-orange-400" />
+                <span className="text-white">GoPlus Security</span>
+              </div>
+              <div className="flex items-center space-x-2 text-sm">
+                <ShieldCheckIcon className="h-4 w-4 text-orange-400" />
+                <span className="text-white">EtherScamDB</span>
+              </div>
+              <div className="flex items-center space-x-2 text-sm">
+                <ShieldCheckIcon className="h-4 w-4 text-orange-400" />
+                <span className="text-white">Local Intelligence</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
         {/* Usage Examples */}
         <div>
           <div className="flex items-center space-x-2 mb-3">
@@ -131,6 +159,10 @@ export default function RightSidebar() {
             <div className="p-3 bg-white/5 border border-white/10 rounded-lg">
               <p className="text-xs text-gray-300 mb-1">Bulk Transfer:</p>
               <p className="text-sm text-white font-mono">&quot;send 0.003 eth to 0x...,0x...,0x...&quot;</p>
+            </div>
+            <div className="p-3 bg-white/5 border border-white/10 rounded-lg">
+              <p className="text-xs text-gray-300 mb-1">Security Check:</p>
+              <p className="text-sm text-white font-mono">&quot;verify 0x..&quot;</p>
             </div>
           </div>
         </div>
