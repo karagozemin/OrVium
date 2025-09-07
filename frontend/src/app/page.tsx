@@ -376,7 +376,7 @@ export default function Home() {
                         {message.showExplorer && message.txHash && (
                           <div className="mt-3 pt-3 border-t border-white/20">
                             <a
-                              href={`https://explorer.testnet.riselabs.xyz/tx/${message.txHash}`}
+                              href={`https://explorer.testnet.riselabs.xyz/tx/${message.txHash.startsWith('0x') ? message.txHash : '0x' + message.txHash}`}
                               target="_blank"
                               rel="noopener noreferrer"
                               className="inline-flex items-center space-x-2 text-xs bg-white/20 hover:bg-white/30 px-3 py-1.5 rounded-lg transition-colors"

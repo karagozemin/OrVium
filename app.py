@@ -590,12 +590,17 @@ class ChatAI:
             print(f"🐛 DEBUG: wallet_manager.execute_transfer_transaction result: {result}")  # Debug log
             
             if result['success']:
+                # Ensure tx_hash has 0x prefix
+                tx_hash = result['tx_hash']
+                if not tx_hash.startswith('0x'):
+                    tx_hash = '0x' + tx_hash
+                    
                 # Generate RISE Explorer URL
-                explorer_url = f"https://explorer.testnet.riselabs.xyz/tx/{result['tx_hash']}"
+                explorer_url = f"https://explorer.testnet.riselabs.xyz/tx/{tx_hash}"
                 
                 return {
                     'success': True,
-                    'tx_hash': result['tx_hash'],
+                    'tx_hash': tx_hash,
                     'explorer_url': explorer_url,
                     'block_number': result.get('block_number'),
                     'gas_used': result.get('gas_used', 0)
@@ -1075,6 +1080,10 @@ def confirm_transaction():
         
         # You could store this in a database in production
         print(f"📝 Transaction confirmed: {transaction_record}")
+        
+        # Ensure tx_hash has 0x prefix for explorer URL
+        if not tx_hash.startswith('0x'):
+            tx_hash = '0x' + tx_hash
         
         return jsonify({
             'success': True,
