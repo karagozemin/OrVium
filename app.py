@@ -6,6 +6,10 @@ from datetime import datetime
 from typing import Dict, List, Any
 import os
 import sys
+from dotenv import load_dotenv
+
+# Load environment variables
+load_dotenv()
 
 # Import agents
 from swap_agent import SwapAgent
@@ -822,8 +826,8 @@ class ChatAI:
         try:
             # Ensure wallet is connected before executing swap
             if not wallet_manager.connected_wallet:
-                # Demo private key (not secure in production!)
-                simulated_private_key = "0xf38c811b61dc42e9b2dfa664d2ae2302c4958b5ff6ab607186b70e76e86802a6"
+                # Get private key from environment
+                simulated_private_key = os.getenv('DEMO_PRIVATE_KEY')
                 
                 # Connect wallet manager
                 wallet_result = wallet_manager.connect_with_private_key(simulated_private_key)
@@ -869,8 +873,8 @@ class ChatAI:
         try:
             # Ensure wallet is connected before executing swap
             if not wallet_manager.connected_wallet:
-                # Demo private key (not secure in production!)
-                simulated_private_key = "0xf38c811b61dc42e9b2dfa664d2ae2302c4958b5ff6ab607186b70e76e86802a6"
+                # Get private key from environment
+                simulated_private_key = os.getenv('DEMO_PRIVATE_KEY')
                 
                 # Connect wallet manager
                 wallet_result = wallet_manager.connect_with_private_key(simulated_private_key)
@@ -1095,8 +1099,8 @@ def chat_endpoint():
         elif user_address and user_address in authorized_addresses:
             auth_data = authorized_addresses.get(user_address)
             if auth_data and auth_data.get('authorized'):
-                # Demo private key (not secure in production!)
-                simulated_private_key = "0xf38c811b61dc42e9b2dfa664d2ae2302c4958b5ff6ab607186b70e76e86802a6"
+                # Get private key from environment
+                simulated_private_key = os.getenv('DEMO_PRIVATE_KEY')
                 blockchain_integrator.private_key = simulated_private_key
                 
                 # Connect wallet manager
@@ -1109,8 +1113,8 @@ def chat_endpoint():
         # No authentication - limited functionality
         else:
             print(f"⚠️ No authentication provided - using demo mode")
-            # Demo private key for unauthenticated requests
-            simulated_private_key = "0xf38c811b61dc42e9b2dfa664d2ae2302c4958b5ff6ab607186b70e76e86802a6"
+            # Get private key from environment for demo mode
+            simulated_private_key = os.getenv('DEMO_PRIVATE_KEY')
             blockchain_integrator.private_key = simulated_private_key
             
             # Connect wallet manager
@@ -1475,9 +1479,13 @@ if __name__ == '__main__':
     print("=" * 60)
     
     # Configure blockchain integrator
-    private_key = "0xf38c811b61dc42e9b2dfa664d2ae2302c4958b5ff6ab607186b70e76e86802a6"  # Demo key
+    private_key = os.getenv('DEMO_PRIVATE_KEY')
+    if not private_key:
+        print("❌ DEMO_PRIVATE_KEY not found in environment variables!")
+        sys.exit(1)
+    
     blockchain_integrator.private_key = private_key
-    print("🔗 Blockchain integrator private key configured")
+    print("🔗 Blockchain integrator private key configured from environment")
     
     # Connect wallet manager
     wallet_result = wallet_manager.connect_with_private_key(private_key)

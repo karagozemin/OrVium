@@ -306,7 +306,7 @@ export default function Home() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-black via-gray-900 to-purple-900/30">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
+      <div className="max-w-7xl mx-auto pl-8 pr-4 sm:pl-10 sm:pr-6 lg:pl-12 lg:pr-8 py-4">
         {!isConnected || !isWalletAuthorized ? (
           <div className="text-center py-20 animate-fade-in">
             <div className="mx-auto mb-8">
@@ -317,7 +317,7 @@ export default function Home() {
             <p className="text-gray-400">Connect your wallet to continue</p>
           </div>
         ) : (
-          <div className="flex space-x-6 h-[calc(100vh-120px)]">
+          <div className="flex space-x-4 h-[calc(100vh-120px)]">
             {/* Main Chat Interface */}
             <div className="flex-1 bg-black/40 backdrop-blur-xl border border-white/10 rounded-2xl shadow-2xl overflow-hidden flex flex-col animate-slide-up hover:shadow-3xl transition-all duration-500">
               <div className="flex items-center justify-center border-b border-white/10 p-4 bg-gradient-to-r from-black/50 to-purple-600/10">
